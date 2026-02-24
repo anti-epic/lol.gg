@@ -10,5 +10,6 @@
     "REDIS_URL": "@redis_url",
     "RIOT_API_KEY": "@riot_api_key",
     "DEFAULT_REGION": "na1"
-  }
+  },
+  "framework": "nextjs"
 }
