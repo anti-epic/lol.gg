@@ -3,6 +3,14 @@
 import { trpc } from '@/utils/trpc'
 import { useState } from 'react'
 
+type SummonerData = {
+  puuid: string
+  name: string
+  region: string
+  summonerLevel: number
+  ranks: Array<any>
+}
+
 export default function Home() {
   const [summonerName, setSummonerName] = useState('')
   const [region, setRegion] = useState('na1')
@@ -10,7 +18,7 @@ export default function Home() {
   const { data: summonerData, isLoading, error } = trpc.summoner.getProfile.useQuery(
     { name: summonerName, region },
     { enabled: summonerName.length > 0 }
-  )
+  ) as { data: SummonerData | undefined, isLoading: boolean, error: any }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
