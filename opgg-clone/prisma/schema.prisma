@@ -1,0 +1,137 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Summoner {
+  // Riot identifiers
+  puuid           String  @id                    // Universal player ID (primary key)
+  summonerId      String  @unique                // Region-specific, can change
+  accountId       String  @unique                // Region-specific, can change
+  name            String                         // Current display name
+  region          String                         // NA1, EUW1, KR, etc.
+
+  // Profile data
+  profileIconId   Int
+  summonerLevel   Int
+  revisionDate    BigInt                         // Last time Riot updated this summoner
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastFetchedAt   DateTime @default(now())       // When we last pulled fresh data from Riot
+
+  // Relations
+  ranks           SummonerRank[]
+  matchParticipants MatchParticipant[]
+
+  @@unique([name, region])                       // Same name can exist in different regions
+  @@index([name, region])                        // Fast summoner search
+  @@index([lastFetchedAt])                       // Find stale data to refresh
+}
+
+model SummonerRank {
+  id              String    @id @default(cuid())
+
+  // Foreign key
+  summonerPuuid   String
+  summoner        Summoner  @relation(fields: [summonerPuuid], references: [puuid], onDelete: Cascade)
+
+  // Rank data
+  queueType       String                         // RANKED_SOLO_5x5, RANKED_FLEX_SR
+  tier            String                         // IRON, BRONZE, SILVER, GOLD, PLATINUM, EMERALD, DIAMOND, MASTER, GRANDMASTER, CHALLENGER
+  rank            String                         // I, II, III, IV (empty for Master+)
+  leaguePoints    Int
+  wins            Int
+  losses          Int
+
+  // Computed fields for fast queries
+  winRate         Float                          // wins / (wins + losses)
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([summonerPuuid, queueType])           // One rank per queue per summoner
+  @@index([queueType, tier, leaguePoints])       // Leaderboard queries
+}
+
+model Match {
+  matchId         String    @id                  // "NA1_4291443184"
+
+  // Game metadata
+  gameCreation    BigInt                         // Unix timestamp
+  gameDuration    Int                            // Seconds
+  gameMode        String                         // CLASSIC, ARAM, etc.
+  gameType        String                         // MATCHED_GAME, CUSTOM_GAME
+  queueId         Int                            // 420 = ranked solo/duo, 440 = ranked flex
+  gameVersion     String                         // "12.23.456.789"
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  participants    MatchParticipant[]
+
+  @@index([gameCreation])                        // Recent matches queries
+  @@index([queueId])                             // Filter by queue type
+}
+
+model MatchParticipant {
+  id              String    @id @default(cuid())
+
+  // Foreign keys
+  matchId         String
+  match           Match     @relation(fields: [matchId], references: [matchId], onDelete: Cascade)
+
+  summonerPuuid   String
+  summoner        Summoner  @relation(fields: [summonerPuuid], references: [puuid], onDelete: Cascade)
+
+  // Champion & team
+  championId      Int
+  champion        Champion  @relation(fields: [championId], references: [id])
+  teamId          Int                            // 100 = blue, 200 = red
+  win             Boolean
+
+  // Core stats
+  kills           Int
+  deaths          Int
+  assists         Int
+  totalMinionsKilled    Int
+  neutralMinionsKilled  Int
+  visionScore     Int
+
+  // Items (store as array of item IDs)
+  items           Int[]                          // [3157, 3020, 1001, 0, 0, 0]
+
+  // Computed/derived stats for fast queries
+  kda             Float                          // (kills + assists) / max(deaths, 1)
+  csPerMin        Float                          // (totalMinionsKilled + neutralMinionsKilled) / (gameDuration / 60)
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+
+  @@unique([matchId, summonerPuuid])             // One participation record per summoner per match
+  @@index([summonerPuuid, createdAt])            // Recent matches for a summoner
+  @@index([championId])                          // Champion-specific stats queries
+}
+
+model Champion {
+  id              Int       @id                  // Riot's champion ID (103 = Ahri)
+  key             String    @unique              // "Ahri"
+  name            String                         // "Ahri"
+  title           String                         // "the Nine-Tailed Fox"
+
+  // Data Dragon info
+  version         String                         // "13.24.1" - last updated version
+
+  // Relations
+  matchParticipants MatchParticipant[]
+
+  @@index([key])                                 // Search by champion key/name
+}
