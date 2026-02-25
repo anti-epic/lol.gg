@@ -16,5 +16,26 @@ services:
     ports:
       - "6379:6379"
 
+  app:
+    profiles: ["full"]
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3000:3000"
+    # Override DB/Redis URLs to use container hostnames instead of localhost
+    environment:
+      DATABASE_URL: "postgresql://dev:dev@postgres:5432/opgg_clone"
+      REDIS_URL: "redis://redis:6379"
+    env_file:
+      - .env.local
+    volumes:
+      - .:/app
+      - /app/node_modules  # use node_modules from image, not host
+      - /app/.next         # isolate .next build cache
+    depends_on:
+      - postgres
+      - redis
+
 volumes:
   postgres_data:
