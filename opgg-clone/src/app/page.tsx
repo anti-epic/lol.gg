@@ -1,31 +1,33 @@
-'use client'
+"use client";
 
-import { trpc } from '@/utils/trpc'
-import { useState } from 'react'
+import { trpc } from "@/utils/trpc";
+import { useState } from "react";
 
 type SummonerData = {
-  puuid: string
-  name: string
-  region: string
-  summonerLevel: number
-  ranks: Array<any>
-}
+  puuid: string;
+  name: string;
+  region: string;
+  summonerLevel: number;
+  ranks: unknown[];
+};
 
 export default function Home() {
-  const [summonerName, setSummonerName] = useState('')
-  const [region, setRegion] = useState('na1')
+  const [summonerName, setSummonerName] = useState("");
+  const [region, setRegion] = useState("na1");
 
-  const { data: summonerData, isLoading, error } = trpc.summoner.getProfile.useQuery(
+  const {
+    data: summonerData,
+    isLoading,
+    error,
+  } = trpc.summoner.getProfile.useQuery(
     { name: summonerName, region },
     { enabled: summonerName.length > 0 }
-  ) as { data: SummonerData | undefined, isLoading: boolean, error: any }
+  ) as { data: SummonerData | undefined; isLoading: boolean; error: Error | null };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-8 text-gray-800">
-          OP.GG Clone dev
-        </h1>
+        <h1 className="text-5xl font-bold text-center mb-8 text-gray-800">OP.GG Clone dev</h1>
 
         <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
           <h2 className="text-2xl font-semibold mb-4">Search Summoner</h2>
@@ -58,7 +60,9 @@ export default function Home() {
               <h3 className="font-semibold text-lg">{summonerData.name}</h3>
               <p>Level: {summonerData.summonerLevel}</p>
               <p>Region: {summonerData.region}</p>
-              <p className="text-sm text-gray-600">Note: Using placeholder data (Riot API not connected yet)</p>
+              <p className="text-sm text-gray-600">
+                Note: Using placeholder data (Riot API not connected yet)
+              </p>
             </div>
           )}
         </div>
@@ -98,5 +102,5 @@ export default function Home() {
         </div>
       </div>
     </div>
-  )
+  );
 }
