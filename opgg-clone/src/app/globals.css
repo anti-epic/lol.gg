@@ -2,20 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
+  /* ─── Light mode ──────────────────────────────────────────── */
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 215 25% 97%; /* #f5f7fa */
+    --foreground: 222 35% 15%; /* #1a2234 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 35% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 35% 15%;
+
+    --primary: 220 75% 61%; /* #5383e8 — OP.GG blue */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 25% 93%;
+    --secondary-foreground: 222 35% 15%;
+
+    --muted: 215 20% 93%;
+    --muted-foreground: 215 20% 50%; /* #6b7fa8 */
+
+    --accent: 220 75% 61%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 350 80% 58%; /* #e84057 */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 215 20% 88%;
+    --input: 215 20% 88%;
+    --ring: 220 75% 61%;
+
+    --radius: 0.5rem;
+
+    /* Game-specific */
+    --win: 213 80% 55%; /* blue — OP.GG win color */
+    --loss: 350 80% 58%; /* red  — OP.GG loss color */
+
+    /* Chart / stat colors */
+    --chart-1: 220 75% 61%; /* primary blue */
+    --chart-2: 350 80% 58%; /* loss red */
+    --chart-3: 45 65% 52%; /* gold */
+    --chart-4: 160 55% 45%; /* positive green */
+    --chart-5: 280 60% 60%; /* purple */
+  }
+
+  /* ─── Dark mode ───────────────────────────────────────────── */
+  .dark {
+    --background: 222 40% 8%; /* #0c1220 */
+    --foreground: 215 40% 92%; /* #e8ecf3 */
+
+    --card: 222 35% 15%; /* #1a2234 */
+    --card-foreground: 215 40% 92%;
+
+    --popover: 222 35% 15%;
+    --popover-foreground: 215 40% 92%;
+
+    --primary: 220 75% 61%; /* same blue, readable on dark */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 30% 22%; /* #242e45 */
+    --secondary-foreground: 215 40% 92%;
+
+    --muted: 220 30% 18%;
+    --muted-foreground: 215 20% 60%; /* #8496b0 */
+
+    --accent: 220 75% 61%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 350 80% 58%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 30% 25%; /* #2a3655 */
+    --input: 220 30% 22%;
+    --ring: 220 75% 61%;
+
+    --win: 213 80% 55%;
+    --loss: 350 80% 58%;
+
+    --chart-1: 220 75% 61%;
+    --chart-2: 350 80% 58%;
+    --chart-3: 45 65% 52%;
+    --chart-4: 160 55% 45%;
+    --chart-5: 280 60% 60%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* ─── Accessibility ───────────────────────────────────────── */
+
+  /* Visible focus ring for keyboard navigation (WCAG 2.4.7) */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Skip-to-content link — hidden until focused */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50
+           focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground
+           focus:rounded-md focus:font-medium;
+  }
+
+  /* Respect reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }

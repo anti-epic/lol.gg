@@ -8,6 +8,7 @@ on:
 
 env:
   HUSKY: 0 # skip git hooks in CI
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
 jobs:
   check:
