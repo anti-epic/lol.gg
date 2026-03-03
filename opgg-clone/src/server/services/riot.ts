@@ -65,8 +65,6 @@ export interface RiotAccount {
 }
 
 export interface RiotSummoner {
-  id: string; // summonerId
-  accountId: string;
   puuid: string;
   profileIconId: number;
   revisionDate: number;
@@ -188,15 +186,10 @@ export async function getSummonerByPuuid(puuid: string, region: string): Promise
   return riotFetch<RiotSummoner>(`https://${host}/lol/summoner/v4/summoners/by-puuid/${puuid}`);
 }
 
-/** League-v4: get ranked entries for a summoner */
-export async function getRankedData(
-  summonerId: string,
-  region: string
-): Promise<RiotLeagueEntry[]> {
+/** League-v4: get ranked entries for a summoner by PUUID */
+export async function getRankedData(puuid: string, region: string): Promise<RiotLeagueEntry[]> {
   const host = platformHost(region);
-  return riotFetch<RiotLeagueEntry[]>(
-    `https://${host}/lol/league/v4/entries/by-summoner/${summonerId}`
-  );
+  return riotFetch<RiotLeagueEntry[]>(`https://${host}/lol/league/v4/entries/by-puuid/${puuid}`);
 }
 
 /** Match-v5: get recent match IDs for a PUUID */

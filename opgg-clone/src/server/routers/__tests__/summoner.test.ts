@@ -59,8 +59,6 @@ const caller = appRouter.createCaller({ ip: "127.0.0.1" });
 
 const MOCK_ACCOUNT = { puuid: "test-puuid", gameName: "TestUser", tagLine: "NA1" };
 const MOCK_SUMMONER = {
-  id: "summoner-id",
-  accountId: "account-id",
   puuid: "test-puuid",
   profileIconId: 1,
   revisionDate: Date.now(),
