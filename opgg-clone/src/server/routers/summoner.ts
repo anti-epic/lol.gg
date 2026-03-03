@@ -105,7 +105,7 @@ export const summonerRouter = createTRPCRouter({
       // 3. Fetch from Riot API (sequential — each call depends on the previous)
       const account = await getAccountByRiotId(gameName, tagLine, region);
       const summoner = await getSummonerByPuuid(account.puuid, region);
-      const rankEntries = await getRankedData(summoner.id, region);
+      const rankEntries = await getRankedData(account.puuid, region);
 
       // 4. Upsert summoner + ranks in a transaction
       const result = await db.$transaction(async (tx) => {
@@ -113,8 +113,6 @@ export const summonerRouter = createTRPCRouter({
           where: { puuid: account.puuid },
           create: {
             puuid: account.puuid,
-            summonerId: summoner.id,
-            accountId: summoner.accountId,
             name: riotId,
             region,
             profileIconId: summoner.profileIconId,
@@ -123,8 +121,6 @@ export const summonerRouter = createTRPCRouter({
             lastFetchedAt: new Date(),
           },
           update: {
-            summonerId: summoner.id,
-            accountId: summoner.accountId,
             name: riotId,
             profileIconId: summoner.profileIconId,
             summonerLevel: summoner.summonerLevel,

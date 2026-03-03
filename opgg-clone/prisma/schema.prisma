@@ -11,8 +11,8 @@ datasource db {
 model Summoner {
   // Riot identifiers
   puuid           String  @id                    // Universal player ID (primary key)
-  summonerId      String  @unique                // Region-specific, can change
-  accountId       String  @unique                // Region-specific, can change
+  summonerId      String?                        // Deprecated by Riot API — no longer returned
+  accountId       String?                        // Deprecated by Riot API — no longer returned
   name            String                         // Current display name
   region          String                         // NA1, EUW1, KR, etc.
 
