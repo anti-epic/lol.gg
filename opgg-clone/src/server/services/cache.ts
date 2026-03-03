@@ -20,7 +20,7 @@ function createRedisClient(): Redis | null {
   return client;
 }
 
-const redis: Redis | null =
+export const redis: Redis | null =
   globalForRedis.redis !== undefined ? globalForRedis.redis : createRedisClient();
 
 if (process.env.NODE_ENV !== "production") globalForRedis.redis = redis;
