@@ -48,7 +48,12 @@ import { appRouter } from "@/server/root";
 import { cache } from "@/server/services/cache";
 import { db } from "@/server/services/db";
 import { rateLimit } from "@/lib/rate-limit";
-import { getAccountByRiotId, getSummonerByPuuid } from "@/server/services/riot";
+import {
+  getAccountByRiotId,
+  getSummonerByPuuid,
+  getRecentMatchIds,
+  getMatch,
+} from "@/server/services/riot";
 
 const caller = appRouter.createCaller({ ip: "127.0.0.1" });
 
@@ -129,5 +134,110 @@ describe("summoner.getProfile", () => {
     await expect(
       caller.summoner.getProfile({ name: "TestUser#NA1", region: "na1" })
     ).rejects.toThrow("Too many requests");
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+const MOCK_PARTICIPANT = {
+  puuid: "test-puuid",
+  championId: 103,
+  championName: "Ahri",
+  teamId: 100,
+  win: true,
+  kills: 10,
+  deaths: 2,
+  assists: 5,
+  totalMinionsKilled: 150,
+  neutralMinionsKilled: 20,
+  visionScore: 30,
+  item0: 3157,
+  item1: 3020,
+  item2: 1001,
+  item3: 0,
+  item4: 0,
+  item5: 0,
+  item6: 3158,
+};
+
+const MOCK_MATCH = {
+  metadata: { matchId: "NA1_12345", participants: ["test-puuid"] },
+  info: {
+    gameCreation: Date.now(),
+    gameDuration: 1800,
+    gameMode: "CLASSIC",
+    gameType: "MATCHED_GAME",
+    gameVersion: "14.1.0",
+    queueId: 420,
+    participants: [MOCK_PARTICIPANT],
+  },
+};
+
+describe("summoner.getMatchHistory", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(rateLimit).mockResolvedValue(true);
+    vi.mocked(cache.get).mockResolvedValue(null);
+  });
+
+  it("returns an empty array when there are no recent matches", async () => {
+    vi.mocked(getRecentMatchIds).mockResolvedValue([]);
+
+    const result = await caller.summoner.getMatchHistory({
+      puuid: "test-puuid",
+      region: "na1",
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it("returns match summaries with correct fields", async () => {
+    vi.mocked(getRecentMatchIds).mockResolvedValue(["NA1_12345"]);
+    vi.mocked(getMatch).mockResolvedValue(MOCK_MATCH as never);
+
+    const result = await caller.summoner.getMatchHistory({
+      puuid: "test-puuid",
+      region: "na1",
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      matchId: "NA1_12345",
+      win: true,
+      championName: "Ahri",
+      kills: 10,
+      deaths: 2,
+      assists: 5,
+      items: [3157, 3020, 1001, 0, 0, 0, 3158],
+    });
+  });
+
+  it("uses cached match data instead of calling the API", async () => {
+    vi.mocked(getRecentMatchIds).mockResolvedValue(["NA1_12345"]);
+    vi.mocked(cache.get)
+      .mockResolvedValueOnce(null) // match IDs — cache miss
+      .mockResolvedValueOnce(MOCK_MATCH as never); // match data — cache hit
+
+    await caller.summoner.getMatchHistory({ puuid: "test-puuid", region: "na1" });
+
+    expect(getMatch).not.toHaveBeenCalled();
+  });
+
+  it("filters out matches where the requested PUUID is not a participant", async () => {
+    vi.mocked(getRecentMatchIds).mockResolvedValue(["NA1_12345"]);
+    vi.mocked(getMatch).mockResolvedValue({
+      ...MOCK_MATCH,
+      info: {
+        ...MOCK_MATCH.info,
+        participants: [{ ...MOCK_PARTICIPANT, puuid: "someone-else" }],
+      },
+    } as never);
+
+    const result = await caller.summoner.getMatchHistory({
+      puuid: "test-puuid",
+      region: "na1",
+    });
+
+    expect(result).toHaveLength(0);
   });
 });
