@@ -1,14 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const isCI = !!process.env.CI;
+const hasBaseUrl = !!process.env.PLAYWRIGHT_BASE_URL;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? "github" : "html",
+  forbidOnly: isCI,
+  retries: isCI ? 2 : 0,
+  reporter: isCI ? "github" : "html",
   use: {
-    // Point to Vercel preview in CI, localhost in local dev
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
   },
@@ -18,13 +19,15 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  // Start the dev server automatically when running locally
-  webServer: process.env.PLAYWRIGHT_BASE_URL
-    ? undefined
+  // Start the dev server automatically when running locally (not against a deployed URL)
+  ...(hasBaseUrl
+    ? {}
     : {
-        command: "npm run dev",
-        url: "http://localhost:3000",
-        reuseExistingServer: true,
-        timeout: 120_000,
-      },
+        webServer: {
+          command: "npm run dev",
+          url: "http://localhost:3000",
+          reuseExistingServer: true,
+          timeout: 120_000,
+        },
+      }),
 });
