@@ -67,7 +67,7 @@ describe("champions.getBuilds", () => {
   it("omits role filter from DB query when role is not provided", async () => {
     await caller.champions.getBuilds({ championId: 103, patch: "16.5" });
 
-    const callArg = mockFindManyItems.mock.calls[0][0] as { where: Record<string, unknown> };
+    const callArg = mockFindManyItems.mock.calls[0]![0] as { where: Record<string, unknown> };
     expect(callArg.where).not.toHaveProperty("role");
   });
 
