@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
 import bundleAnalyzer from "@next/bundle-analyzer";
 
 const withBundleAnalyzer = bundleAnalyzer({
@@ -34,12 +33,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client"],
 
-  // Strip console.* calls from production bundles
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
 
-  // next/image remote domains — Riot Data Dragon + CommunityDragon for assets
   images: {
     remotePatterns: [
       {
@@ -57,37 +54,21 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [
-      // Security headers on all routes
       {
         source: "/(.*)",
         headers: securityHeaders,
       },
-      // tRPC API — never cache at the HTTP layer (tRPC/React Query owns caching)
       {
         source: "/api/trpc/:path*",
         headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
       },
-      // Next.js static assets are content-addressed — safe to cache forever
-      {
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
+      // NOTE: Do NOT add cache headers for /_next/static/:path* here.
+      // In development, chunk filenames are not content-hashed, so aggressive
+      // caching causes browsers to serve stale JS after a server restart.
+      // In production, Next.js sets max-age=31536000,immutable automatically
+      // because production chunk filenames include content hashes.
     ];
   },
 };
 
-const configWithAnalyzer = withBundleAnalyzer(nextConfig);
-
-export default process.env.NEXT_PUBLIC_SENTRY_DSN
-  ? withSentryConfig(configWithAnalyzer, {
-      org: process.env.SENTRY_ORG ?? "",
-      project: process.env.SENTRY_PROJECT ?? "",
-      silent: !process.env.CI,
-      widenClientFileUpload: true,
-    })
-  : configWithAnalyzer;
+export default withBundleAnalyzer(nextConfig);

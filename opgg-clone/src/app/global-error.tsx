@@ -2,7 +2,6 @@
 
 // global-error.tsx catches errors in the root layout itself.
 // It must include its own <html> and <body> tags.
-import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 export default function GlobalError({
@@ -13,7 +12,9 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    if (process.env.NODE_ENV === "production") {
+      void import("@sentry/nextjs").then((mod) => mod.captureException(error));
+    }
   }, [error]);
 
   return (

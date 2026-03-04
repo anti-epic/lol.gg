@@ -85,6 +85,7 @@ export interface RiotMatchParticipant {
   championId: number;
   championName: string;
   teamId: number;
+  teamPosition: string;
   win: boolean;
   kills: number;
   deaths: number;
@@ -208,4 +209,33 @@ export async function getRecentMatchIds(
 export async function getMatch(matchId: string, region: string): Promise<RiotMatch> {
   const host = regionalHost(region);
   return riotFetch<RiotMatch>(`https://${host}/lol/match/v5/matches/${matchId}`);
+}
+
+export interface RiotChallengerEntry {
+  summonerId: string;
+  summonerName: string;
+  leaguePoints: number;
+}
+
+export interface RiotChallengerLeague {
+  entries: RiotChallengerEntry[];
+}
+
+/** League-v4: get challenger league entries for RANKED_SOLO_5x5 */
+export async function getChallengerLeague(region: string): Promise<RiotChallengerLeague> {
+  const host = platformHost(region);
+  return riotFetch<RiotChallengerLeague>(
+    `https://${host}/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5`
+  );
+}
+
+/** Summoner-v4: get summoner (including puuid) by encrypted summoner ID */
+export async function getSummonerById(
+  summonerId: string,
+  region: string
+): Promise<RiotSummoner & { puuid: string }> {
+  const host = platformHost(region);
+  return riotFetch<RiotSummoner & { puuid: string }>(
+    `https://${host}/lol/summoner/v4/summoners/${summonerId}`
+  );
 }

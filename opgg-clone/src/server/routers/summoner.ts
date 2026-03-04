@@ -12,6 +12,7 @@ import {
   type RiotMatch,
   type RiotMatchParticipant,
 } from "../services/riot";
+import { processMatchForBuildStats } from "@/lib/build-aggregator";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -188,6 +189,8 @@ export const summonerRouter = createTRPCRouter({
 
           const match = await getMatch(matchId, region);
           await cache.set(matchCacheKey, match, 365 * 24 * 60 * 60); // 1 year
+          // Passively populate build stats — fire and forget
+          void processMatchForBuildStats(match).catch(console.error);
           return match;
         })
       );

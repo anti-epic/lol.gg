@@ -135,3 +135,38 @@ model Champion {
 
   @@index([key])                                 // Search by champion key/name
 }
+
+model ChampionBuildStat {
+  id         Int      @id @default(autoincrement())
+  championId Int
+  patch      String   // "16.5" (major.minor only)
+  role       String   // "MIDDLE" | "TOP" | "JUNGLE" | "BOTTOM" | "UTILITY"
+  itemId     Int
+  wins       Int      @default(0)
+  games      Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([championId, patch, role, itemId])
+  @@index([championId, patch, role])
+}
+
+model ChampionWinStat {
+  id         Int      @id @default(autoincrement())
+  championId Int
+  patch      String
+  role       String
+  wins       Int      @default(0)
+  games      Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([championId, patch, role])
+  @@index([championId, patch])
+}
+
+model CrawledMatch {
+  matchId   String   @id
+  patch     String
+  crawledAt DateTime @default(now())
+
+  @@index([patch])
+}
