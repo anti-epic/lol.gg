@@ -1,0 +1,57 @@
+name: Daily Build Crawl
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC every day
+  workflow_dispatch: # manual trigger from GitHub Actions UI
+    inputs:
+      players:
+        description: "Number of challenger players to crawl"
+        default: "15"
+      matches:
+        description: "Matches per player"
+        default: "20"
+      region:
+        description: "Region (na1, euw1, kr, etc.)"
+        default: "na1"
+
+env:
+  HUSKY: 0
+
+jobs:
+  crawl:
+    name: Seed build aggregation data
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: opgg-clone
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: opgg-clone/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run crawl
+        run: npx tsx scripts/crawl.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
+          CRAWL_REGION: ${{ inputs.region || 'na1' }}
+          CRAWL_PLAYERS: ${{ inputs.players || '15' }}
+          CRAWL_MATCHES: ${{ inputs.matches || '20' }}
+          CRAWL_DELAY_MS: "1300"
