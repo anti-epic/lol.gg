@@ -1,31 +1,27 @@
 import { type Metadata } from "next";
+import { getAllChampions, getDDragonVersion } from "@/lib/ddragon";
+import { ChampionGrid } from "@/components/champion-grid";
 
 export const metadata: Metadata = {
-  title: "Champion Tier List — OP.GG Clone",
-  description: "League of Legends champion win rates, pick rates, and tier rankings",
+  title: "Champions — lol.gg",
+  description: "Browse all League of Legends champions",
 };
 
-// ISR — revalidate every hour (per architecture.md)
 export const revalidate = 3600;
 
-export default function ChampionsPage() {
-  // TODO (Step 7): Fetch champion aggregate stats via tRPC server caller
-  // const champions = await caller.champions.getTierList()
+export default async function ChampionsPage() {
+  const [championsMap, version] = await Promise.all([getAllChampions(), getDDragonVersion()]);
+
+  const champions = Object.values(championsMap).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <main id="main-content" className="mx-auto max-w-5xl space-y-6 p-6">
+    <main id="main-content" className="mx-auto max-w-7xl space-y-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Champion Tier List</h1>
-        <p className="mt-1 text-muted-foreground">
-          Win rates, pick rates, and ban rates aggregated across all ranked games
-        </p>
+        <h1 className="text-3xl font-bold text-foreground">Champions</h1>
+        <p className="mt-1 text-muted-foreground">{champions.length} champions</p>
       </div>
 
-      {/* TODO: Role filter tabs */}
-      {/* TODO: Tier list table — champion icon, name, tier, win rate, pick rate, ban rate */}
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-muted-foreground">Champion tier list data will appear here.</p>
-      </div>
+      <ChampionGrid champions={champions} version={version} />
     </main>
   );
 }

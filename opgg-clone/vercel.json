@@ -3,7 +3,16 @@
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "src/app/api/crawl/route.ts": {
+      "maxDuration": 300
     }
   },
+  "crons": [
+    {
+      "path": "/api/crawl",
+      "schedule": "0 6 * * *"
+    }
+  ],
   "framework": "nextjs"
 }
