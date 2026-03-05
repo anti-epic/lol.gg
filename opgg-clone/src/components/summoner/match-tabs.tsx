@@ -2,10 +2,30 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+export type MatchParticipant = {
+  puuid: string;
+  riotIdGameName: string;
+  riotIdTagline: string;
+  championName: string;
+  champLevel: number;
+  teamId: number;
+  win: boolean;
+  kills: number;
+  deaths: number;
+  assists: number;
+  cs: number;
+  damage: number;
+  spell1Id: number;
+  spell2Id: number;
+  items: number[];
+  isQueried: boolean;
+};
 
 export type MatchSummary = {
   matchId: string;
@@ -13,7 +33,6 @@ export type MatchSummary = {
   gameDuration: number;
   queueId: number;
   win: boolean;
-  championId: number;
   championName: string;
   champLevel: number;
   teamPosition: string;
@@ -23,9 +42,12 @@ export type MatchSummary = {
   deaths: number;
   assists: number;
   kda: number;
+  killParticipation: number;
+  multiKill: string | null;
   cs: number;
   csPerMin: number;
   items: number[];
+  allParticipants: MatchParticipant[];
 };
 
 export type MasterySummary = {
@@ -44,14 +66,14 @@ interface Props {
   spellImages: Record<number, string>;
   version: string;
   masteries: MasterySummary[];
-  championKeyMap: Record<number, string>; // numeric id → DDragon string id e.g. 103 → "Ahri"
+  championKeyMap: Record<number, string>;
+  region: string;
 }
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-// Tab definitions — queueIds: null means "show all"
 const TAB_DEFS: { id: string; label: string; queueIds: number[] | null }[] = [
   { id: "all", label: "All", queueIds: null },
   { id: "ranked-solo", label: "Ranked Solo", queueIds: [420] },
@@ -77,8 +99,15 @@ const QUEUE_NAMES: Record<number, string> = {
   1300: "Nexus Blitz",
 };
 
+const MULTIKILL_STYLES: Record<string, string> = {
+  "Penta Kill": "bg-red-500 text-white",
+  "Quadra Kill": "bg-purple-500 text-white",
+  "Triple Kill": "bg-blue-500 text-white",
+  "Double Kill": "bg-cyan-600 text-white",
+};
+
 // ---------------------------------------------------------------------------
-// DDragon URL helpers (pure string fns — safe for client components)
+// DDragon URL helpers
 // ---------------------------------------------------------------------------
 
 const CDN = "https://ddragon.leagueoflegends.com";
@@ -153,6 +182,143 @@ function buildChampStats(filtered: MatchSummary[]) {
 }
 
 // ---------------------------------------------------------------------------
+// Item slot (shared helper)
+// ---------------------------------------------------------------------------
+
+function ItemSlot({
+  itemId,
+  version,
+  size = 24,
+}: {
+  itemId: number;
+  version: string;
+  size?: number;
+}) {
+  if (itemId > 0)
+    return (
+      <Image
+        src={itemIconUrl(version, String(itemId))}
+        alt={`Item ${itemId}`}
+        width={size}
+        height={size}
+        className="rounded border border-border"
+      />
+    );
+  return (
+    <div style={{ width: size, height: size }} className="rounded border border-border bg-muted" />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Scoreboard row
+// ---------------------------------------------------------------------------
+
+function ScoreboardRow({
+  p,
+  version,
+  spellImages,
+  region,
+  maxDamage,
+}: {
+  p: MatchParticipant;
+  version: string;
+  spellImages: Record<number, string>;
+  region: string;
+  maxDamage: number;
+}) {
+  const riotId = `${p.riotIdGameName}#${p.riotIdTagline}`;
+  const href = `/summoner/${region}/${encodeURIComponent(riotId)}`;
+  const kda = (p.kills + p.assists) / Math.max(p.deaths, 1);
+  const dmgPct = maxDamage > 0 ? (p.damage / maxDamage) * 100 : 0;
+  const spell1 = spellImages[p.spell1Id] ?? "SummonerFlash.png";
+  const spell2 = spellImages[p.spell2Id] ?? "SummonerFlash.png";
+
+  return (
+    <div
+      className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${
+        p.isQueried ? "bg-primary/10" : "hover:bg-muted/50"
+      }`}
+    >
+      {/* Champion + spells */}
+      <div className="flex shrink-0 items-center gap-1">
+        <Image
+          src={champIconUrl(version, p.championName)}
+          alt={p.championName}
+          width={28}
+          height={28}
+          className="rounded-full border border-border"
+        />
+        <div className="flex flex-col gap-px">
+          <Image
+            src={spellIconUrl(version, spell1)}
+            alt=""
+            width={13}
+            height={13}
+            className="rounded"
+          />
+          <Image
+            src={spellIconUrl(version, spell2)}
+            alt=""
+            width={13}
+            height={13}
+            className="rounded"
+          />
+        </div>
+      </div>
+
+      {/* Name */}
+      <div className="w-24 min-w-0">
+        <Link
+          href={href}
+          onClick={(e) => e.stopPropagation()}
+          className={`truncate block text-xs hover:underline ${p.isQueried ? "font-bold text-foreground" : "text-muted-foreground"}`}
+        >
+          {p.riotIdGameName || p.championName}
+        </Link>
+      </div>
+
+      {/* KDA */}
+      <div className="w-20 shrink-0 text-center">
+        <span className="text-foreground">{p.kills}</span>
+        <span className="text-muted-foreground"> / </span>
+        <span className="text-red-400">{p.deaths}</span>
+        <span className="text-muted-foreground"> / </span>
+        <span className="text-foreground">{p.assists}</span>
+        <p className="text-[10px] text-muted-foreground">{kda.toFixed(2)} KDA</p>
+      </div>
+
+      {/* CS */}
+      <div className="hidden w-10 shrink-0 text-center sm:block">
+        <p className="text-foreground">{p.cs}</p>
+        <p className="text-[10px] text-muted-foreground">CS</p>
+      </div>
+
+      {/* Damage bar */}
+      <div className="hidden flex-1 sm:block">
+        <div className="flex items-center gap-1">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+            <div
+              className={`h-full rounded-full ${p.win ? "bg-blue-500" : "bg-red-500"}`}
+              style={{ width: `${dmgPct}%` }}
+            />
+          </div>
+          <span className="w-10 shrink-0 text-right text-[10px] text-muted-foreground">
+            {p.damage >= 1000 ? `${(p.damage / 1000).toFixed(1)}k` : p.damage}
+          </span>
+        </div>
+      </div>
+
+      {/* Items */}
+      <div className="flex shrink-0 gap-px">
+        {p.items.map((id, i) => (
+          <ItemSlot key={i} itemId={id} version={version} size={20} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Match card
 // ---------------------------------------------------------------------------
 
@@ -160,108 +326,202 @@ function MatchCard({
   m,
   spellImages,
   version,
+  region,
 }: {
   m: MatchSummary;
   spellImages: Record<number, string>;
   version: string;
+  region: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   const spell1 = spellImages[m.spell1Id] ?? "SummonerFlash.png";
   const spell2 = spellImages[m.spell2Id] ?? "SummonerFlash.png";
   const queueName = QUEUE_NAMES[m.queueId] ?? "Custom";
   const kdaColor =
     m.kda >= 5 ? "text-yellow-400" : m.kda >= 3 ? "text-blue-400" : "text-foreground";
 
+  const blueTeam = m.allParticipants.filter((p) => p.teamId === 100);
+  const redTeam = m.allParticipants.filter((p) => p.teamId === 200);
+  const maxDamage = Math.max(...m.allParticipants.map((p) => p.damage), 1);
+
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border p-3 ${
-        m.win
-          ? "border-l-4 border-blue-500/50 bg-blue-950/20"
-          : "border-l-4 border-red-500/50 bg-red-950/20"
+      className={`overflow-hidden rounded-xl border ${
+        m.win ? "border-blue-500/30" : "border-red-500/30"
       }`}
     >
-      {/* W/L */}
-      <span
-        className={`w-8 shrink-0 text-center text-xs font-bold ${m.win ? "text-blue-400" : "text-red-400"}`}
+      {/* ── Collapsed row ── */}
+      <div
+        className={`flex cursor-pointer items-stretch ${
+          m.win ? "bg-blue-950/25" : "bg-red-950/25"
+        }`}
+        onClick={() => setExpanded((x) => !x)}
       >
-        {m.win ? "W" : "L"}
-      </span>
+        {/* Left accent bar */}
+        <div className={`w-1 shrink-0 ${m.win ? "bg-blue-500" : "bg-red-500"}`} />
 
-      {/* Champion icon + level */}
-      <div className="relative shrink-0">
-        <Image
-          src={champIconUrl(version, m.championName)}
-          alt={m.championName}
-          width={40}
-          height={40}
-          className="rounded-full border border-border"
-        />
-        <span className="absolute -bottom-1 -right-1 rounded-full bg-background px-1 text-[10px] font-bold text-muted-foreground">
-          {m.champLevel}
-        </span>
-      </div>
+        {/* Game info */}
+        <div className="flex w-24 shrink-0 flex-col justify-center gap-0.5 px-3 py-3">
+          <p className="text-xs font-semibold text-foreground">{queueName}</p>
+          <p className="text-[10px] text-muted-foreground">{timeAgo(m.gameCreation)}</p>
+          <div className="my-1.5 h-px bg-border/60" />
+          <p className={`text-sm font-bold ${m.win ? "text-blue-400" : "text-red-400"}`}>
+            {m.win ? "Victory" : "Defeat"}
+          </p>
+          <p className="text-[10px] text-muted-foreground">{formatDuration(m.gameDuration)}</p>
+        </div>
 
-      {/* Spells */}
-      <div className="flex shrink-0 flex-col gap-0.5">
-        <Image
-          src={spellIconUrl(version, spell1)}
-          alt=""
-          width={18}
-          height={18}
-          className="rounded"
-        />
-        <Image
-          src={spellIconUrl(version, spell2)}
-          alt=""
-          width={18}
-          height={18}
-          className="rounded"
-        />
-      </div>
-
-      {/* Champion name + position */}
-      <div className="hidden w-20 shrink-0 sm:block">
-        <p className="truncate text-xs font-semibold text-foreground">{m.championName}</p>
-        {m.teamPosition && <p className="text-[10px] text-muted-foreground">{m.teamPosition}</p>}
-      </div>
-
-      {/* KDA */}
-      <div className="w-24 shrink-0 text-center">
-        <p className="text-sm font-semibold text-foreground">
-          {m.kills} / <span className="text-red-400">{m.deaths}</span> / {m.assists}
-        </p>
-        <p className={`text-xs font-bold ${kdaColor}`}>{m.kda.toFixed(2)} KDA</p>
-      </div>
-
-      {/* CS */}
-      <div className="hidden w-16 shrink-0 text-center sm:block">
-        <p className="text-xs text-foreground">{m.cs} CS</p>
-        <p className="text-[10px] text-muted-foreground">{m.csPerMin.toFixed(1)}/min</p>
-      </div>
-
-      {/* Items */}
-      <div className="flex flex-1 flex-wrap gap-0.5">
-        {m.items.map((itemId, idx) =>
-          itemId > 0 ? (
+        {/* Champion icon + spells */}
+        <div className="flex shrink-0 items-center gap-2 px-2 py-3">
+          <div className="relative">
             <Image
-              key={idx}
-              src={itemIconUrl(version, String(itemId))}
-              alt={`Item ${itemId}`}
-              width={22}
-              height={22}
-              className="rounded border border-border"
+              src={champIconUrl(version, m.championName)}
+              alt={m.championName}
+              width={52}
+              height={52}
+              className="rounded-full border-2 border-border"
             />
-          ) : (
-            <div key={idx} className="h-[22px] w-[22px] rounded border border-border bg-muted" />
-          )
-        )}
+            <span className="absolute -bottom-1 -right-1 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-bold leading-none text-muted-foreground">
+              {m.champLevel}
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <Image
+              src={spellIconUrl(version, spell1)}
+              alt=""
+              width={20}
+              height={20}
+              className="rounded"
+            />
+            <Image
+              src={spellIconUrl(version, spell2)}
+              alt=""
+              width={20}
+              height={20}
+              className="rounded"
+            />
+          </div>
+        </div>
+
+        {/* KDA + participation */}
+        <div className="flex w-32 shrink-0 flex-col items-center justify-center gap-0.5 px-2 py-3">
+          <p className="text-base font-bold text-foreground">
+            {m.kills} / <span className="text-red-400">{m.deaths}</span> / {m.assists}
+          </p>
+          <p className={`text-xs font-semibold ${kdaColor}`}>{m.kda.toFixed(2)} KDA</p>
+          <p className="text-[10px] text-muted-foreground">
+            P/Kill {Math.round(m.killParticipation * 100)}%
+          </p>
+          {m.multiKill && (
+            <span
+              className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold ${MULTIKILL_STYLES[m.multiKill] ?? "bg-primary text-primary-foreground"}`}
+            >
+              {m.multiKill}
+            </span>
+          )}
+        </div>
+
+        {/* CS (hidden on small) */}
+        <div className="hidden w-14 shrink-0 flex-col items-center justify-center sm:flex">
+          <p className="text-xs text-foreground">{m.cs} CS</p>
+          <p className="text-[10px] text-muted-foreground">{m.csPerMin.toFixed(1)}/m</p>
+        </div>
+
+        {/* Items */}
+        <div className="flex flex-1 flex-wrap items-center gap-0.5 px-2 py-3">
+          {m.items.map((id, i) => (
+            <ItemSlot key={i} itemId={id} version={version} size={26} />
+          ))}
+        </div>
+
+        {/* Team comp */}
+        <div className="hidden shrink-0 flex-col items-center justify-center gap-0.5 px-2 py-3 sm:flex">
+          <div className="flex gap-px">
+            {blueTeam.slice(0, 5).map((p) => (
+              <Image
+                key={p.puuid}
+                src={champIconUrl(version, p.championName)}
+                alt={p.championName}
+                width={18}
+                height={18}
+                className={`rounded-sm ${p.isQueried ? "ring-1 ring-primary" : ""}`}
+              />
+            ))}
+          </div>
+          <div className="flex gap-px">
+            {redTeam.slice(0, 5).map((p) => (
+              <Image
+                key={p.puuid}
+                src={champIconUrl(version, p.championName)}
+                alt={p.championName}
+                width={18}
+                height={18}
+                className={`rounded-sm ${p.isQueried ? "ring-1 ring-primary" : ""}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Expand toggle */}
+        <button
+          className="flex shrink-0 items-center px-3 text-muted-foreground hover:text-foreground"
+          aria-label={expanded ? "Collapse match" : "Expand match"}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded((x) => !x);
+          }}
+        >
+          <span
+            className={`text-xs transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+          >
+            ▼
+          </span>
+        </button>
       </div>
 
-      {/* Game info */}
-      <div className="hidden shrink-0 text-right sm:block">
-        <p className="text-xs font-medium text-muted-foreground">{queueName}</p>
-        <p className="text-[10px] text-muted-foreground">{timeAgo(m.gameCreation)}</p>
-        <p className="text-[10px] text-muted-foreground">{formatDuration(m.gameDuration)}</p>
-      </div>
+      {/* ── Expanded scoreboard ── */}
+      {expanded && (
+        <div
+          className={`border-t border-border/50 px-4 py-3 ${m.win ? "bg-blue-950/10" : "bg-red-950/10"}`}
+        >
+          {/* Blue team */}
+          <p className="mb-1 text-xs font-semibold text-blue-400">
+            Blue Team — {blueTeam[0]?.win ? "Victory" : "Defeat"}
+          </p>
+          <div className="space-y-0.5">
+            {blueTeam.map((p) => (
+              <ScoreboardRow
+                key={p.puuid}
+                p={p}
+                version={version}
+                spellImages={spellImages}
+                region={region}
+                maxDamage={maxDamage}
+              />
+            ))}
+          </div>
+
+          <div className="my-2 h-px bg-border/50" />
+
+          {/* Red team */}
+          <p className="mb-1 text-xs font-semibold text-red-400">
+            Red Team — {redTeam[0]?.win ? "Victory" : "Defeat"}
+          </p>
+          <div className="space-y-0.5">
+            {redTeam.map((p) => (
+              <ScoreboardRow
+                key={p.puuid}
+                p={p}
+                version={version}
+                spellImages={spellImages}
+                region={region}
+                maxDamage={maxDamage}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -270,12 +530,17 @@ function MatchCard({
 // Main export
 // ---------------------------------------------------------------------------
 
-export function MatchTabs({ matches, spellImages, version, masteries, championKeyMap }: Props) {
+export function MatchTabs({
+  matches,
+  spellImages,
+  version,
+  masteries,
+  championKeyMap,
+  region,
+}: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("all");
-
   const isMasteryTab = activeTab === "mastery";
 
-  // Only show match-mode tabs that have at least one match (always show "all")
   const visibleMatchTabs = useMemo(
     () =>
       TAB_DEFS.filter((tab) => {
@@ -285,31 +550,26 @@ export function MatchTabs({ matches, spellImages, version, masteries, championKe
     [matches]
   );
 
-  // Filtered matches for active tab (irrelevant when mastery tab is active)
   const filtered = useMemo(() => {
     if (isMasteryTab) return [];
     const def = TAB_DEFS.find((t) => t.id === activeTab);
     if (!def || def.queueIds === null) return matches;
-    return matches.filter((m) => (def.queueIds as number[]).includes(m.queueId));
+    return matches.filter((m) => def.queueIds!.includes(m.queueId));
   }, [matches, activeTab, isMasteryTab]);
 
-  // Win rate summary for active tab
   const summary = useMemo(() => {
     if (filtered.length === 0) return null;
     const wins = filtered.filter((m) => m.win).length;
     return { wins, losses: filtered.length - wins, winRate: wins / filtered.length };
   }, [filtered]);
 
-  // Champion stats for active tab
   const champStats = useMemo(() => buildChampStats(filtered), [filtered]);
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      {/* Left: tabs + content */}
       <div className="min-w-0 flex-1">
         {/* Tab bar */}
         <div className="mb-3 flex flex-wrap items-center gap-1 border-b border-border">
-          {/* Game mode tabs */}
           {visibleMatchTabs.map((tab) => {
             const count =
               tab.id === "all"
@@ -338,10 +598,8 @@ export function MatchTabs({ matches, spellImages, version, masteries, championKe
             );
           })}
 
-          {/* Divider */}
           {masteries.length > 0 && <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />}
 
-          {/* Mastery tab */}
           {masteries.length > 0 && (
             <button
               onClick={() => setActiveTab("mastery")}
@@ -378,13 +636,11 @@ export function MatchTabs({ matches, spellImages, version, masteries, championKe
                     (m.championPointsSinceLastLevel + m.championPointsUntilNextLevel)) *
                   100
                 : 100;
-
               return (
                 <div
                   key={m.championId}
                   className={`flex items-center gap-3 rounded-xl border border-border bg-card p-3 ${style.glow}`}
                 >
-                  {/* Champion icon */}
                   <div className="relative shrink-0">
                     <Image
                       src={champIconUrl(version, champName)}
@@ -393,15 +649,12 @@ export function MatchTabs({ matches, spellImages, version, masteries, championKe
                       height={48}
                       className="rounded-full border border-border"
                     />
-                    {/* Mastery level badge */}
                     <span
                       className={`absolute -bottom-1 -right-1 rounded-full px-1.5 py-0.5 text-[10px] font-extrabold leading-none ${style.badge}`}
                     >
                       {m.championLevel}
                     </span>
                   </div>
-
-                  {/* Info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-semibold text-foreground">{champName}</p>
@@ -417,7 +670,6 @@ export function MatchTabs({ matches, spellImages, version, masteries, championKe
                     <p className="text-xs text-muted-foreground">
                       {formatPoints(m.championPoints)} pts · {timeAgo(m.lastPlayTime)}
                     </p>
-                    {/* Progress bar */}
                     <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                       <div
                         className={`h-full rounded-full ${
@@ -444,7 +696,6 @@ export function MatchTabs({ matches, spellImages, version, masteries, championKe
           </div>
         ) : (
           <>
-            {/* Win rate summary bar */}
             {summary && (
               <div className="mb-3 flex items-center gap-3 text-sm">
                 <span className="font-semibold text-foreground">{filtered.length}G</span>
@@ -469,8 +720,6 @@ export function MatchTabs({ matches, spellImages, version, masteries, championKe
                 </span>
               </div>
             )}
-
-            {/* Match list */}
             {filtered.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
                 No matches found for this mode.
@@ -478,7 +727,13 @@ export function MatchTabs({ matches, spellImages, version, masteries, championKe
             ) : (
               <div className="space-y-2">
                 {filtered.map((m) => (
-                  <MatchCard key={m.matchId} m={m} spellImages={spellImages} version={version} />
+                  <MatchCard
+                    key={m.matchId}
+                    m={m}
+                    spellImages={spellImages}
+                    version={version}
+                    region={region}
+                  />
                 ))}
               </div>
             )}
@@ -486,7 +741,7 @@ export function MatchTabs({ matches, spellImages, version, masteries, championKe
         )}
       </div>
 
-      {/* Right: champion stats sidebar (hidden on mastery tab) */}
+      {/* Champion stats sidebar */}
       {!isMasteryTab && (
         <div className="w-full lg:w-64 lg:shrink-0">
           <h2 className="mb-3 text-lg font-semibold text-foreground">Champion Stats</h2>

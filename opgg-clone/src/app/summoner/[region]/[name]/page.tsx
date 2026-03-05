@@ -49,13 +49,43 @@ function buildMatchSummary(match: RiotMatch, puuid: string) {
   if (!p) return null;
   const cs = p.totalMinionsKilled + p.neutralMinionsKilled;
   const durationMinutes = match.info.gameDuration / 60;
+  const teamKills = match.info.participants
+    .filter((pp) => pp.teamId === p.teamId)
+    .reduce((sum, pp) => sum + pp.kills, 0);
+  const multiKill =
+    p.pentaKills > 0
+      ? "Penta Kill"
+      : p.quadraKills > 0
+        ? "Quadra Kill"
+        : p.tripleKills > 0
+          ? "Triple Kill"
+          : p.doubleKills > 0
+            ? "Double Kill"
+            : null;
+  const allParticipants = match.info.participants.map((pp) => ({
+    puuid: pp.puuid,
+    riotIdGameName: pp.riotIdGameName,
+    riotIdTagline: pp.riotIdTagline,
+    championName: pp.championName,
+    champLevel: pp.champLevel,
+    teamId: pp.teamId,
+    win: pp.win,
+    kills: pp.kills,
+    deaths: pp.deaths,
+    assists: pp.assists,
+    cs: pp.totalMinionsKilled + pp.neutralMinionsKilled,
+    damage: pp.totalDamageDealtToChampions,
+    spell1Id: pp.spell1Id,
+    spell2Id: pp.spell2Id,
+    items: [pp.item0, pp.item1, pp.item2, pp.item3, pp.item4, pp.item5, pp.item6],
+    isQueried: pp.puuid === puuid,
+  }));
   return {
     matchId: match.metadata.matchId,
     gameCreation: match.info.gameCreation,
     gameDuration: match.info.gameDuration,
     queueId: match.info.queueId,
     win: p.win,
-    championId: p.championId,
     championName: p.championName,
     champLevel: p.champLevel,
     teamPosition: p.teamPosition,
@@ -65,9 +95,12 @@ function buildMatchSummary(match: RiotMatch, puuid: string) {
     deaths: p.deaths,
     assists: p.assists,
     kda: (p.kills + p.assists) / Math.max(p.deaths, 1),
+    killParticipation: (p.kills + p.assists) / Math.max(teamKills, 1),
+    multiKill,
     cs,
     csPerMin: cs / Math.max(durationMinutes, 1),
     items: [p.item0, p.item1, p.item2, p.item3, p.item4, p.item5, p.item6],
+    allParticipants,
   };
 }
 
@@ -291,6 +324,7 @@ export default async function SummonerPage({ params }: PageProps) {
           version={version}
           masteries={masteries}
           championKeyMap={championKeyMap}
+          region={regionKey}
         />
       </section>
     </main>

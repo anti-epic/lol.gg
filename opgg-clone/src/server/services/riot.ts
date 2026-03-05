@@ -93,6 +93,8 @@ export interface RiotChampionMastery {
 
 export interface RiotMatchParticipant {
   puuid: string;
+  riotIdGameName: string;
+  riotIdTagline: string;
   championId: number;
   championName: string;
   champLevel: number;
@@ -104,6 +106,11 @@ export interface RiotMatchParticipant {
   kills: number;
   deaths: number;
   assists: number;
+  doubleKills: number;
+  tripleKills: number;
+  quadraKills: number;
+  pentaKills: number;
+  totalDamageDealtToChampions: number;
   totalMinionsKilled: number;
   neutralMinionsKilled: number;
   visionScore: number;
