@@ -84,8 +84,11 @@ export interface RiotMatchParticipant {
   puuid: string;
   championId: number;
   championName: string;
+  champLevel: number;
   teamId: number;
   teamPosition: string;
+  spell1Id: number;
+  spell2Id: number;
   win: boolean;
   kills: number;
   deaths: number;

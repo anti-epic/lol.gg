@@ -88,3 +88,30 @@ export function passiveIconUrl(version: string, filename: string): string {
 export function itemIconUrl(version: string, itemId: string): string {
   return `${BASE}/cdn/${version}/img/item/${itemId}.png`;
 }
+
+export function profileIconUrl(version: string, iconId: number): string {
+  return `${BASE}/cdn/${version}/img/profileicon/${iconId}.png`;
+}
+
+export function summonerSpellIconUrl(version: string, filename: string): string {
+  return `${BASE}/cdn/${version}/img/spell/${filename}`;
+}
+
+export interface DDragonSummonerSpell {
+  key: string; // spell ID as a string, e.g. "4"
+  image: { full: string }; // e.g. "SummonerFlash.png"
+}
+
+/** Returns a map of numeric spell ID → image filename (e.g. 4 → "SummonerFlash.png") */
+export async function getSummonerSpellImages(version: string): Promise<Record<number, string>> {
+  const res = await fetch(`${BASE}/cdn/${version}/data/en_US/summoner.json`, {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) return {};
+  const data: { data: Record<string, DDragonSummonerSpell> } = await res.json();
+  const map: Record<number, string> = {};
+  for (const spell of Object.values(data.data)) {
+    map[parseInt(spell.key, 10)] = spell.image.full;
+  }
+  return map;
+}
