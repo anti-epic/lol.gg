@@ -65,11 +65,22 @@ describe("processMatchForBuildStats", () => {
     vi.clearAllMocks();
   });
 
-  it("skips non-ranked games (queueId != 420)", async () => {
-    await processMatchForBuildStats(makeMatch({ queueId: 450 }) as never);
+  it("skips untracked game modes (e.g. custom games)", async () => {
+    // Queue ID 0 is a custom game — not in TRACKED_QUEUES
+    await processMatchForBuildStats(makeMatch({ queueId: 0 }) as never);
 
     expect(db.championWinStat.upsert).not.toHaveBeenCalled();
     expect(db.championBuildStat.upsert).not.toHaveBeenCalled();
+  });
+
+  it("processes ARAM games (queueId 450) with empty role", async () => {
+    await processMatchForBuildStats(makeMatch({ queueId: 450 }) as never);
+
+    expect(db.championWinStat.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ queueId: 450, role: "" }),
+      })
+    );
   });
 
   it("upserts win stat and item stats for a valid ranked game", async () => {

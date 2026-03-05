@@ -7,10 +7,11 @@ import {
   championLoadingUrl,
   spellIconUrl,
   passiveIconUrl,
-  itemIconUrl,
+  getAramModifiers,
 } from "@/lib/ddragon";
 import { db } from "@/server/services/db";
 import { extractPatch } from "@/lib/build-aggregator";
+import { ModeBuildTabs, type ModeData } from "@/components/champions/mode-builds";
 
 export const revalidate = 3600;
 
@@ -52,6 +53,9 @@ const STAT_LABELS: Record<string, string> = {
   attackrange: "Range",
 };
 
+// Queue IDs we track and the display order
+const TRACKED_QUEUES = [420, 450, 1700, 900, 440, 490, 1020, 1300];
+
 export default async function ChampionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [champion, version] = await Promise.all([getChampionDetail(id), getDDragonVersion()]);
@@ -59,42 +63,86 @@ export default async function ChampionDetailPage({ params }: { params: Promise<{
   const patch = extractPatch(version);
   const championId = parseInt(champion.key, 10);
 
-  // DB queries are best-effort: during builds (11 parallel workers) or when the
-  // DB is unavailable they fail gracefully and the placeholder is shown instead.
-  const MIN_GAMES = 3;
-  let buildItems: { itemId: number; wins: number; games: number }[] = [];
-  let overallWinRate: number | null = null;
-  let totalGames = 0;
-  let dataPatch = patch; // may fall back to an older patch if current has no data
+  // ---------------------------------------------------------------------------
+  // Fetch build data per game mode (best-effort — graceful fallback if DB down)
+  // ---------------------------------------------------------------------------
+
+  const modeBuildData: ModeData[] = [];
+  let aramModifiers = null;
+
   try {
-    // If the current patch has no data yet, use the most recent patch that does.
-    const hasCurrent = await db.championBuildStat.findFirst({
-      where: { championId, patch, games: { gte: MIN_GAMES } },
-      select: { patch: true },
-    });
-    if (!hasCurrent) {
-      const fallback = await db.championBuildStat.findFirst({
-        where: { championId, games: { gte: MIN_GAMES } },
-        orderBy: { patch: "desc" },
-        select: { patch: true },
-      });
-      if (fallback) dataPatch = fallback.patch;
+    const [winStats, buildStats, aramMods] = await Promise.all([
+      db.championWinStat.findMany({
+        where: { championId, patch },
+        select: { queueId: true, role: true, wins: true, games: true },
+      }),
+      db.championBuildStat.findMany({
+        where: { championId, patch, games: { gte: 3 } },
+        orderBy: { games: "desc" },
+        select: { queueId: true, role: true, itemId: true, wins: true, games: true },
+      }),
+      getAramModifiers(),
+    ]);
+
+    // Get ARAM modifiers for this champion
+    aramModifiers = aramMods[championId] ?? null;
+
+    // Group win stats by queueId
+    const winByQueue = new Map<number, { wins: number; games: number; roles: Set<string> }>();
+    for (const s of winStats) {
+      const entry = winByQueue.get(s.queueId) ?? { wins: 0, games: 0, roles: new Set() };
+      entry.wins += s.wins;
+      entry.games += s.games;
+      if (s.role) entry.roles.add(s.role);
+      winByQueue.set(s.queueId, entry);
     }
 
-    const [rawItems, winStats] = await Promise.all([
-      db.championBuildStat.findMany({
-        where: { championId, patch: dataPatch, games: { gte: MIN_GAMES } },
-        orderBy: { games: "desc" },
-        take: 10,
-      }),
-      db.championWinStat.findMany({ where: { championId, patch: dataPatch } }),
-    ]);
-    buildItems = rawItems;
-    totalGames = winStats.reduce((sum, s) => sum + s.games, 0);
-    const totalWins = winStats.reduce((sum, s) => sum + s.wins, 0);
-    overallWinRate = totalGames > 0 ? totalWins / totalGames : null;
+    // Group build items by queueId (take top 10 per queue by games)
+    const itemsByQueue = new Map<number, typeof buildStats>();
+    for (const b of buildStats) {
+      const arr = itemsByQueue.get(b.queueId) ?? [];
+      arr.push(b);
+      itemsByQueue.set(b.queueId, arr);
+    }
+
+    // Assemble ModeData for each queue that has data
+    for (const queueId of TRACKED_QUEUES) {
+      const ws = winByQueue.get(queueId);
+      if (!ws || ws.games === 0) continue;
+
+      const rawItems = (itemsByQueue.get(queueId) ?? []).slice(0, 10);
+      modeBuildData.push({
+        queueId,
+        totalGames: ws.games,
+        winRate: ws.games > 0 ? ws.wins / ws.games : null,
+        items: rawItems.map((i) => ({
+          itemId: i.itemId,
+          winRate: i.games > 0 ? i.wins / i.games : 0,
+          games: i.games,
+        })),
+        roles: [...ws.roles].sort(),
+      });
+    }
+
+    // Also include any queues with data that aren't in our preset list
+    for (const [queueId, ws] of winByQueue.entries()) {
+      if (TRACKED_QUEUES.includes(queueId)) continue;
+      if (ws.games === 0) continue;
+      const rawItems = (itemsByQueue.get(queueId) ?? []).slice(0, 10);
+      modeBuildData.push({
+        queueId,
+        totalGames: ws.games,
+        winRate: ws.games > 0 ? ws.wins / ws.games : null,
+        items: rawItems.map((i) => ({
+          itemId: i.itemId,
+          winRate: i.games > 0 ? i.wins / i.games : 0,
+          games: i.games,
+        })),
+        roles: [...ws.roles].sort(),
+      });
+    }
   } catch {
-    // DB unavailable or too many connections — render placeholder
+    // DB unavailable — render without build data
   }
 
   return (
@@ -126,6 +174,18 @@ export default async function ChampionDetailPage({ params }: { params: Promise<{
           </div>
           <p className="max-w-prose text-sm text-muted-foreground">{champion.blurb}</p>
         </div>
+      </section>
+
+      {/* ── Game Mode Builds ── */}
+      <section>
+        <h2 className="mb-4 text-xl font-semibold text-foreground">Builds by Mode</h2>
+        {modeBuildData.length > 0 ? (
+          <ModeBuildTabs modes={modeBuildData} version={version} aramModifiers={aramModifiers} />
+        ) : (
+          <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+            Data is being collected — check back soon after more matches are processed.
+          </div>
+        )}
       </section>
 
       {/* ── Abilities ── */}
@@ -206,52 +266,6 @@ export default async function ChampionDetailPage({ params }: { params: Promise<{
             </div>
           ))}
         </div>
-      </section>
-
-      {/* ── Popular Items ── */}
-      <section>
-        <div className="mb-4 flex items-baseline gap-3">
-          <h2 className="text-xl font-semibold text-foreground">Popular Items</h2>
-          {overallWinRate !== null && (
-            <span className="text-sm text-muted-foreground">
-              {(overallWinRate * 100).toFixed(1)}% win rate · {totalGames.toLocaleString()} games
-              (patch {dataPatch})
-            </span>
-          )}
-        </div>
-
-        {buildItems.length > 0 ? (
-          <div className="flex flex-wrap gap-3 rounded-xl border border-border bg-card p-4">
-            {buildItems.map((item) => {
-              const wr = item.wins / item.games;
-              const wrColor =
-                wr > 0.52 ? "text-green-400" : wr < 0.48 ? "text-red-400" : "text-muted-foreground";
-              return (
-                <div key={item.itemId} className="flex flex-col items-center gap-1">
-                  <div className="relative">
-                    <Image
-                      src={itemIconUrl(version, String(item.itemId))}
-                      alt={`Item ${item.itemId}`}
-                      width={40}
-                      height={40}
-                      className="rounded border border-border"
-                    />
-                  </div>
-                  <span className={`text-[10px] font-semibold leading-none ${wrColor}`}>
-                    {(wr * 100).toFixed(1)}%
-                  </span>
-                  <span className="text-[10px] leading-none text-muted-foreground">
-                    {item.games >= 1000 ? `${(item.games / 1000).toFixed(1)}k` : item.games}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-            Data is being collected — check back soon after more matches are processed.
-          </div>
-        )}
       </section>
     </main>
   );
