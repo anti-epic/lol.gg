@@ -1,106 +1,98 @@
 "use client";
 
-import { trpc } from "@/utils/trpc";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-type SummonerData = {
-  puuid: string;
-  name: string;
-  region: string;
-  summonerLevel: number;
-  ranks: unknown[];
-};
+const REGIONS = [
+  { value: "na1", label: "NA" },
+  { value: "euw1", label: "EUW" },
+  { value: "kr", label: "KR" },
+  { value: "eun1", label: "EUNE" },
+  { value: "jp1", label: "JP" },
+  { value: "br1", label: "BR" },
+  { value: "la1", label: "LAN" },
+  { value: "la2", label: "LAS" },
+  { value: "oc1", label: "OCE" },
+  { value: "tr1", label: "TR" },
+  { value: "ru", label: "RU" },
+];
 
 export default function Home() {
-  const [summonerName, setSummonerName] = useState("");
+  const router = useRouter();
   const [region, setRegion] = useState("na1");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
 
-  const {
-    data: summonerData,
-    isLoading,
-    error,
-  } = trpc.summoner.getProfile.useQuery(
-    { name: summonerName, region },
-    { enabled: summonerName.length > 0 }
-  ) as { data: SummonerData | undefined; isLoading: boolean; error: Error | null };
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (!trimmed.includes("#")) {
+      setError("Use Riot ID format: GameName#Tag (e.g. Faker#KR1)");
+      return;
+    }
+    setError("");
+    router.push(`/summoner/${region}/${encodeURIComponent(trimmed)}`);
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-8 text-gray-800">OP.GG Clone dev</h1>
-
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Search Summoner</h2>
-
-          <div className="flex gap-4 mb-4">
-            <select
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg"
-            >
-              <option value="na1">North America</option>
-              <option value="euw1">Europe West</option>
-              <option value="kr">Korea</option>
-              <option value="eun1">Europe Nordic & East</option>
-            </select>
-
-            <input
-              type="text"
-              placeholder="Enter summoner name..."
-              value={summonerName}
-              onChange={(e) => setSummonerName(e.target.value)}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {isLoading && <p>Loading summoner data...</p>}
-          {error && <p className="text-red-500">Error: {error.message}</p>}
-          {summonerData && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold text-lg">{summonerData.name}</h3>
-              <p>Level: {summonerData.summonerLevel}</p>
-              <p>Region: {summonerData.region}</p>
-              <p className="text-sm text-gray-600">
-                Note: Using placeholder data (Riot API not connected yet)
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <h2 className="text-2xl font-semibold mb-4">Development Status</h2>
-          <div className="space-y-2">
-            <p className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-              Next.js 14 with App Router
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-              TypeScript strict mode
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-              tRPC end-to-end type safety
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-              Prisma ORM with PostgreSQL schema
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-              Redis caching layer
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-yellow-500 rounded-full"></span>
-              Riot API integration (pending API key)
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-gray-300 rounded-full"></span>
-              Database migrations (pending Docker setup)
-            </p>
-          </div>
-        </div>
+    <main
+      id="main-content"
+      className="flex min-h-[80vh] flex-col items-center justify-center gap-10 px-4"
+    >
+      {/* Hero */}
+      <div className="text-center">
+        <h1 className="text-5xl font-extrabold tracking-tight text-foreground">lol.gg</h1>
+        <p className="mt-2 text-lg text-muted-foreground">
+          League of Legends stats, builds, and match history
+        </p>
       </div>
-    </div>
+
+      {/* Search form */}
+      <form onSubmit={handleSubmit} className="w-full max-w-lg space-y-3">
+        <div className="flex overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <select
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            className="border-r border-border bg-muted px-3 py-3 text-sm font-medium text-foreground focus:outline-none"
+            aria-label="Region"
+          >
+            {REGIONS.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (error) setError("");
+            }}
+            placeholder="GameName#Tag"
+            className="flex-1 bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="submit"
+            className="bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Search
+          </button>
+        </div>
+        {error && <p className="text-sm text-red-400">{error}</p>}
+      </form>
+
+      {/* Quick links */}
+      <p className="text-sm text-muted-foreground">
+        Or browse{" "}
+        <Link href="/champions" className="font-medium text-foreground hover:underline">
+          Champions
+        </Link>
+      </p>
+    </main>
   );
 }
