@@ -89,6 +89,20 @@ export function itemIconUrl(version: string, itemId: string): string {
   return `${BASE}/cdn/${version}/img/item/${itemId}.png`;
 }
 
+/** Returns a map of numeric champion key → DDragon string ID (e.g. 103 → "Ahri") */
+export async function getChampionKeyMap(version: string): Promise<Record<number, string>> {
+  const res = await fetch(`${BASE}/cdn/${version}/data/en_US/champion.json`, {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) return {};
+  const data: { data: Record<string, { key: string }> } = await res.json();
+  const map: Record<number, string> = {};
+  for (const [id, champ] of Object.entries(data.data)) {
+    map[parseInt(champ.key, 10)] = id;
+  }
+  return map;
+}
+
 export function profileIconUrl(version: string, iconId: number): string {
   return `${BASE}/cdn/${version}/img/profileicon/${iconId}.png`;
 }

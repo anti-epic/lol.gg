@@ -80,6 +80,17 @@ export interface RiotLeagueEntry {
   losses: number;
 }
 
+export interface RiotChampionMastery {
+  championId: number;
+  championLevel: number;
+  championPoints: number;
+  lastPlayTime: number; // Unix ms
+  championPointsSinceLastLevel: number;
+  championPointsUntilNextLevel: number;
+  chestGranted: boolean;
+  tokensEarned: number;
+}
+
 export interface RiotMatchParticipant {
   puuid: string;
   championId: number;
@@ -205,6 +216,17 @@ export async function getRecentMatchIds(
   const host = regionalHost(region);
   return riotFetch<string[]>(
     `https://${host}/lol/match/v5/matches/by-puuid/${puuid}/ids?count=${count}`
+  );
+}
+
+/** Champion-Mastery-v4: get all champion masteries for a summoner by PUUID */
+export async function getChampionMasteries(
+  puuid: string,
+  region: string
+): Promise<RiotChampionMastery[]> {
+  const host = platformHost(region);
+  return riotFetch<RiotChampionMastery[]>(
+    `https://${host}/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}`
   );
 }
 

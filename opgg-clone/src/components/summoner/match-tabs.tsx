@@ -28,10 +28,23 @@ export type MatchSummary = {
   items: number[];
 };
 
+export type MasterySummary = {
+  championId: number;
+  championLevel: number;
+  championPoints: number;
+  lastPlayTime: number;
+  championPointsSinceLastLevel: number;
+  championPointsUntilNextLevel: number;
+  chestGranted: boolean;
+  tokensEarned: number;
+};
+
 interface Props {
   matches: MatchSummary[];
   spellImages: Record<number, string>;
   version: string;
+  masteries: MasterySummary[];
+  championKeyMap: Record<number, string>; // numeric id → DDragon string id e.g. 103 → "Ahri"
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +103,28 @@ function formatDuration(secs: number): string {
   const m = Math.floor(secs / 60);
   const s = secs % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function formatPoints(pts: number): string {
+  if (pts >= 1_000_000) return `${(pts / 1_000_000).toFixed(2)}M`;
+  if (pts >= 1_000) return `${(pts / 1_000).toFixed(0)}k`;
+  return String(pts);
+}
+
+const MASTERY_STYLES: Record<number, { badge: string; glow: string }> = {
+  10: {
+    badge: "bg-gradient-to-br from-yellow-200 to-orange-400 text-black",
+    glow: "shadow-[0_0_8px_2px_rgba(250,204,21,0.4)]",
+  },
+  9: { badge: "bg-yellow-400 text-black", glow: "shadow-[0_0_6px_1px_rgba(250,204,21,0.3)]" },
+  8: { badge: "bg-yellow-500 text-black", glow: "shadow-[0_0_6px_1px_rgba(234,179,8,0.3)]" },
+  7: { badge: "bg-yellow-600 text-white", glow: "" },
+  6: { badge: "bg-purple-500 text-white", glow: "" },
+  5: { badge: "bg-red-500 text-white", glow: "" },
+  4: { badge: "bg-cyan-600 text-white", glow: "" },
+};
+function masteryStyle(level: number) {
+  return MASTERY_STYLES[level] ?? { badge: "bg-muted text-muted-foreground", glow: "" };
 }
 
 function buildChampStats(filtered: MatchSummary[]) {
@@ -235,11 +270,13 @@ function MatchCard({
 // Main export
 // ---------------------------------------------------------------------------
 
-export function MatchTabs({ matches, spellImages, version }: Props) {
+export function MatchTabs({ matches, spellImages, version, masteries, championKeyMap }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("all");
 
-  // Only show tabs that have at least one match (always show "all")
-  const visibleTabs = useMemo(
+  const isMasteryTab = activeTab === "mastery";
+
+  // Only show match-mode tabs that have at least one match (always show "all")
+  const visibleMatchTabs = useMemo(
     () =>
       TAB_DEFS.filter((tab) => {
         if (tab.id === "all") return true;
@@ -248,12 +285,13 @@ export function MatchTabs({ matches, spellImages, version }: Props) {
     [matches]
   );
 
-  // Filtered matches for active tab
+  // Filtered matches for active tab (irrelevant when mastery tab is active)
   const filtered = useMemo(() => {
+    if (isMasteryTab) return [];
     const def = TAB_DEFS.find((t) => t.id === activeTab);
     if (!def || def.queueIds === null) return matches;
     return matches.filter((m) => (def.queueIds as number[]).includes(m.queueId));
-  }, [matches, activeTab]);
+  }, [matches, activeTab, isMasteryTab]);
 
   // Win rate summary for active tab
   const summary = useMemo(() => {
@@ -267,11 +305,12 @@ export function MatchTabs({ matches, spellImages, version }: Props) {
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      {/* Left: tabs + match list */}
+      {/* Left: tabs + content */}
       <div className="min-w-0 flex-1">
         {/* Tab bar */}
-        <div className="mb-3 flex items-center gap-1 border-b border-border">
-          {visibleTabs.map((tab) => {
+        <div className="mb-3 flex flex-wrap items-center gap-1 border-b border-border">
+          {/* Game mode tabs */}
+          {visibleMatchTabs.map((tab) => {
             const count =
               tab.id === "all"
                 ? matches.length
@@ -298,89 +337,201 @@ export function MatchTabs({ matches, spellImages, version }: Props) {
               </button>
             );
           })}
+
+          {/* Divider */}
+          {masteries.length > 0 && <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />}
+
+          {/* Mastery tab */}
+          {masteries.length > 0 && (
+            <button
+              onClick={() => setActiveTab("mastery")}
+              className={`flex items-center gap-1.5 rounded-t px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                isMasteryTab
+                  ? "border-b-2 border-yellow-400 text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Mastery
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                  isMasteryTab
+                    ? "bg-yellow-400/20 text-yellow-400"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {masteries.length}
+              </span>
+            </button>
+          )}
         </div>
 
-        {/* Win rate summary bar */}
-        {summary && (
-          <div className="mb-3 flex items-center gap-3 text-sm">
-            <span className="font-semibold text-foreground">{filtered.length}G</span>
-            <span className="text-blue-400">{summary.wins}W</span>
-            <span className="text-red-400">{summary.losses}L</span>
-            <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-muted">
-              <div className="h-full bg-blue-500" style={{ width: `${summary.winRate * 100}%` }} />
-            </div>
-            <span
-              className={
-                summary.winRate > 0.52
-                  ? "font-bold text-blue-400"
-                  : summary.winRate < 0.48
-                    ? "font-bold text-red-400"
-                    : "text-muted-foreground"
-              }
-            >
-              {Math.round(summary.winRate * 100)}%
-            </span>
-          </div>
-        )}
+        {/* ── Mastery view ── */}
+        {isMasteryTab ? (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {masteries.map((m) => {
+              const champName = championKeyMap[m.championId];
+              if (!champName) return null;
+              const style = masteryStyle(m.championLevel);
+              const hasProgress = m.championPointsUntilNextLevel > 0;
+              const progressPct = hasProgress
+                ? (m.championPointsSinceLastLevel /
+                    (m.championPointsSinceLastLevel + m.championPointsUntilNextLevel)) *
+                  100
+                : 100;
 
-        {/* Match list */}
-        {filtered.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-            No matches found for this mode.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filtered.map((m) => (
-              <MatchCard key={m.matchId} m={m} spellImages={spellImages} version={version} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Right: champion stats sidebar */}
-      <div className="w-full lg:w-64 lg:shrink-0">
-        <h2 className="mb-3 text-lg font-semibold text-foreground">Champion Stats</h2>
-        {champStats.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-4 text-center text-sm text-muted-foreground">
-            No data.
-          </div>
-        ) : (
-          <div className="space-y-2 rounded-xl border border-border bg-card p-4">
-            {champStats.map((c) => {
-              const wrColor =
-                c.winRate > 0.52
-                  ? "text-green-400"
-                  : c.winRate < 0.48
-                    ? "text-red-400"
-                    : "text-muted-foreground";
               return (
-                <div key={c.name} className="flex items-center gap-3">
-                  <Image
-                    src={champIconUrl(version, c.name)}
-                    alt={c.name}
-                    width={32}
-                    height={32}
-                    className="shrink-0 rounded-full border border-border"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-foreground">{c.name}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {c.games}G ·{" "}
-                      <span className="text-foreground">
-                        {c.avgK.toFixed(1)}/{c.avgD.toFixed(1)}/{c.avgA.toFixed(1)}
-                      </span>{" "}
-                      · {c.kda.toFixed(2)} KDA
-                    </p>
+                <div
+                  key={m.championId}
+                  className={`flex items-center gap-3 rounded-xl border border-border bg-card p-3 ${style.glow}`}
+                >
+                  {/* Champion icon */}
+                  <div className="relative shrink-0">
+                    <Image
+                      src={champIconUrl(version, champName)}
+                      alt={champName}
+                      width={48}
+                      height={48}
+                      className="rounded-full border border-border"
+                    />
+                    {/* Mastery level badge */}
+                    <span
+                      className={`absolute -bottom-1 -right-1 rounded-full px-1.5 py-0.5 text-[10px] font-extrabold leading-none ${style.badge}`}
+                    >
+                      {m.championLevel}
+                    </span>
                   </div>
-                  <span className={`shrink-0 text-xs font-bold ${wrColor}`}>
-                    {Math.round(c.winRate * 100)}%
-                  </span>
+
+                  {/* Info */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-foreground">{champName}</p>
+                      {m.chestGranted && (
+                        <span
+                          className="shrink-0 text-xs text-yellow-400"
+                          title="Season chest earned"
+                        >
+                          ✦
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatPoints(m.championPoints)} pts · {timeAgo(m.lastPlayTime)}
+                    </p>
+                    {/* Progress bar */}
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full ${
+                          m.championLevel >= 10
+                            ? "bg-gradient-to-r from-yellow-300 to-orange-400"
+                            : m.championLevel >= 7
+                              ? "bg-yellow-400"
+                              : m.championLevel >= 5
+                                ? "bg-purple-400"
+                                : "bg-primary"
+                        }`}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                    {hasProgress && (
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {formatPoints(m.championPointsUntilNextLevel)} to next level
+                      </p>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
+        ) : (
+          <>
+            {/* Win rate summary bar */}
+            {summary && (
+              <div className="mb-3 flex items-center gap-3 text-sm">
+                <span className="font-semibold text-foreground">{filtered.length}G</span>
+                <span className="text-blue-400">{summary.wins}W</span>
+                <span className="text-red-400">{summary.losses}L</span>
+                <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-blue-500"
+                    style={{ width: `${summary.winRate * 100}%` }}
+                  />
+                </div>
+                <span
+                  className={
+                    summary.winRate > 0.52
+                      ? "font-bold text-blue-400"
+                      : summary.winRate < 0.48
+                        ? "font-bold text-red-400"
+                        : "text-muted-foreground"
+                  }
+                >
+                  {Math.round(summary.winRate * 100)}%
+                </span>
+              </div>
+            )}
+
+            {/* Match list */}
+            {filtered.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+                No matches found for this mode.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filtered.map((m) => (
+                  <MatchCard key={m.matchId} m={m} spellImages={spellImages} version={version} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {/* Right: champion stats sidebar (hidden on mastery tab) */}
+      {!isMasteryTab && (
+        <div className="w-full lg:w-64 lg:shrink-0">
+          <h2 className="mb-3 text-lg font-semibold text-foreground">Champion Stats</h2>
+          {champStats.length === 0 ? (
+            <div className="rounded-xl border border-border bg-card p-4 text-center text-sm text-muted-foreground">
+              No data.
+            </div>
+          ) : (
+            <div className="space-y-2 rounded-xl border border-border bg-card p-4">
+              {champStats.map((c) => {
+                const wrColor =
+                  c.winRate > 0.52
+                    ? "text-green-400"
+                    : c.winRate < 0.48
+                      ? "text-red-400"
+                      : "text-muted-foreground";
+                return (
+                  <div key={c.name} className="flex items-center gap-3">
+                    <Image
+                      src={champIconUrl(version, c.name)}
+                      alt={c.name}
+                      width={32}
+                      height={32}
+                      className="shrink-0 rounded-full border border-border"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-foreground">{c.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {c.games}G ·{" "}
+                        <span className="text-foreground">
+                          {c.avgK.toFixed(1)}/{c.avgD.toFixed(1)}/{c.avgA.toFixed(1)}
+                        </span>{" "}
+                        · {c.kda.toFixed(2)} KDA
+                      </p>
+                    </div>
+                    <span className={`shrink-0 text-xs font-bold ${wrColor}`}>
+                      {Math.round(c.winRate * 100)}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

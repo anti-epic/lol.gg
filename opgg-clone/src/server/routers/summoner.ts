@@ -179,6 +179,7 @@ export const summonerRouter = createTRPCRouter({
         cache.delete(`ranks:${input.puuid}`),
         cache.delete(`match-ids:${region}:${input.puuid}`),
         cache.delete(`account:${region}:${input.puuid}`),
+        cache.delete(`masteries:${input.puuid}`),
       ]);
       return { ok: true };
     }),

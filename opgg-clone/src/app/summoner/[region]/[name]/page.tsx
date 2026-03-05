@@ -9,12 +9,19 @@ import {
   getRankedData,
   getRecentMatchIds,
   getMatch,
+  getChampionMasteries,
   type RiotMatch,
   type RiotLeagueEntry,
   type RiotMatchParticipant,
+  type RiotChampionMastery,
 } from "@/server/services/riot";
 import { processMatchForBuildStats } from "@/lib/build-aggregator";
-import { getDDragonVersion, getSummonerSpellImages, profileIconUrl } from "@/lib/ddragon";
+import {
+  getDDragonVersion,
+  getSummonerSpellImages,
+  getChampionKeyMap,
+  profileIconUrl,
+} from "@/lib/ddragon";
 import { MatchTabs } from "@/components/summoner/match-tabs";
 import { RefreshButton } from "@/components/summoner/refresh-button";
 
@@ -173,7 +180,7 @@ export default async function SummonerPage({ params }: PageProps) {
     throw err;
   }
 
-  const [summoner, rankEntries, version] = await Promise.all([
+  const [summoner, rankEntries, version, masteries] = await Promise.all([
     (async () => {
       const key = `summoner-data:${account.puuid}`;
       const cached = await redisCache.get<Awaited<ReturnType<typeof getSummonerByPuuid>>>(key);
@@ -191,6 +198,14 @@ export default async function SummonerPage({ params }: PageProps) {
       return data;
     })(),
     getDDragonVersion(),
+    (async () => {
+      const key = `masteries:${account.puuid}`;
+      const cached = await redisCache.get<RiotChampionMastery[]>(key);
+      if (cached) return cached;
+      const data = await getChampionMasteries(account.puuid, regionKey);
+      await redisCache.set(key, data, 300);
+      return data;
+    })(),
   ]);
 
   const matchIds = await (async () => {
@@ -223,7 +238,10 @@ export default async function SummonerPage({ params }: PageProps) {
     .map((m) => buildMatchSummary(m, account.puuid))
     .filter((s): s is NonNullable<ReturnType<typeof buildMatchSummary>> => s !== null);
 
-  const spellImages = await getSummonerSpellImages(version);
+  const [spellImages, championKeyMap] = await Promise.all([
+    getSummonerSpellImages(version),
+    getChampionKeyMap(version),
+  ]);
 
   const soloEntry = rankEntries.find((r) => r.queueType === "RANKED_SOLO_5x5");
   const flexEntry = rankEntries.find((r) => r.queueType === "RANKED_FLEX_SR");
@@ -267,7 +285,13 @@ export default async function SummonerPage({ params }: PageProps) {
 
       {/* ── Tabbed match history + champion stats ── */}
       <section>
-        <MatchTabs matches={matches} spellImages={spellImages} version={version} />
+        <MatchTabs
+          matches={matches}
+          spellImages={spellImages}
+          version={version}
+          masteries={masteries}
+          championKeyMap={championKeyMap}
+        />
       </section>
     </main>
   );
