@@ -16,6 +16,7 @@ import {
 import { processMatchForBuildStats } from "@/lib/build-aggregator";
 import { getDDragonVersion, getSummonerSpellImages, profileIconUrl } from "@/lib/ddragon";
 import { MatchTabs } from "@/components/summoner/match-tabs";
+import { RefreshButton } from "@/components/summoner/refresh-button";
 
 // SSR — data is dynamic and needs to be fresh on every load (per architecture.md)
 interface PageProps {
@@ -247,11 +248,14 @@ export default async function SummonerPage({ params }: PageProps) {
             {summoner.summonerLevel}
           </span>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">{riotId}</h1>
-          <span className="mt-1 inline-block rounded bg-muted px-2 py-0.5 text-xs font-medium uppercase text-muted-foreground">
-            {regionKey}
-          </span>
+        <div className="flex flex-1 items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">{riotId}</h1>
+            <span className="mt-1 inline-block rounded bg-muted px-2 py-0.5 text-xs font-medium uppercase text-muted-foreground">
+              {regionKey}
+            </span>
+          </div>
+          <RefreshButton puuid={account.puuid} region={regionKey} />
         </div>
       </section>
 

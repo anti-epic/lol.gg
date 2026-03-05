@@ -154,7 +154,7 @@ function MatchCard({
       {/* Champion icon + level */}
       <div className="relative shrink-0">
         <Image
-          src={champIconUrl(version, `${m.championName}.png`)}
+          src={champIconUrl(version, m.championName)}
           alt={m.championName}
           width={40}
           height={40}
@@ -356,7 +356,7 @@ export function MatchTabs({ matches, spellImages, version }: Props) {
               return (
                 <div key={c.name} className="flex items-center gap-3">
                   <Image
-                    src={champIconUrl(version, `${c.name}.png`)}
+                    src={champIconUrl(version, c.name)}
                     alt={c.name}
                     width={32}
                     height={32}

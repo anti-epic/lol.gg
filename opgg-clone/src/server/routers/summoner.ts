@@ -165,6 +165,24 @@ export const summonerRouter = createTRPCRouter({
       return result;
     }),
 
+  refresh: publicProcedure
+    .input(
+      z.object({
+        puuid: z.string().min(1),
+        region: z.string().min(2).max(5),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const region = input.region.toLowerCase();
+      await Promise.all([
+        cache.delete(`summoner-data:${input.puuid}`),
+        cache.delete(`ranks:${input.puuid}`),
+        cache.delete(`match-ids:${region}:${input.puuid}`),
+        cache.delete(`account:${region}:${input.puuid}`),
+      ]);
+      return { ok: true };
+    }),
+
   getMatchHistory: publicProcedure
     .input(
       z.object({
