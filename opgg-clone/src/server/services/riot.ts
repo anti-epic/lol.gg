@@ -100,8 +100,8 @@ export interface RiotMatchParticipant {
   champLevel: number;
   teamId: number;
   teamPosition: string;
-  spell1Id: number;
-  spell2Id: number;
+  summoner1Id: number;
+  summoner2Id: number;
   win: boolean;
   kills: number;
   deaths: number;

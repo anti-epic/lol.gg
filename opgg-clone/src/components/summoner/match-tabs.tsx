@@ -210,6 +210,37 @@ function ItemSlot({
 }
 
 // ---------------------------------------------------------------------------
+// Spell slot (shows empty placeholder when ID is 0 or unmapped)
+// ---------------------------------------------------------------------------
+
+function SpellSlot({
+  spellId,
+  spellImages,
+  version,
+  size = 20,
+}: {
+  spellId: number;
+  spellImages: Record<number, string>;
+  version: string;
+  size?: number;
+}) {
+  const filename = spellId > 0 ? spellImages[spellId] : undefined;
+  if (filename)
+    return (
+      <Image
+        src={spellIconUrl(version, filename)}
+        alt=""
+        width={size}
+        height={size}
+        className="rounded"
+      />
+    );
+  return (
+    <div style={{ width: size, height: size }} className="rounded border border-border bg-muted" />
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Scoreboard row
 // ---------------------------------------------------------------------------
 
@@ -230,8 +261,6 @@ function ScoreboardRow({
   const href = `/summoner/${region}/${encodeURIComponent(riotId)}`;
   const kda = (p.kills + p.assists) / Math.max(p.deaths, 1);
   const dmgPct = maxDamage > 0 ? (p.damage / maxDamage) * 100 : 0;
-  const spell1 = spellImages[p.spell1Id] ?? "SummonerFlash.png";
-  const spell2 = spellImages[p.spell2Id] ?? "SummonerFlash.png";
 
   return (
     <div
@@ -249,20 +278,8 @@ function ScoreboardRow({
           className="rounded-full border border-border"
         />
         <div className="flex flex-col gap-px">
-          <Image
-            src={spellIconUrl(version, spell1)}
-            alt=""
-            width={13}
-            height={13}
-            className="rounded"
-          />
-          <Image
-            src={spellIconUrl(version, spell2)}
-            alt=""
-            width={13}
-            height={13}
-            className="rounded"
-          />
+          <SpellSlot spellId={p.spell1Id} spellImages={spellImages} version={version} size={13} />
+          <SpellSlot spellId={p.spell2Id} spellImages={spellImages} version={version} size={13} />
         </div>
       </div>
 
@@ -335,9 +352,8 @@ function MatchCard({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const spell1 = spellImages[m.spell1Id] ?? "SummonerFlash.png";
-  const spell2 = spellImages[m.spell2Id] ?? "SummonerFlash.png";
   const queueName = QUEUE_NAMES[m.queueId] ?? "Custom";
+  const hasCs = m.queueId !== 1700; // Arena has no minion lanes
   const kdaColor =
     m.kda >= 5 ? "text-yellow-400" : m.kda >= 3 ? "text-blue-400" : "text-foreground";
 
@@ -387,20 +403,8 @@ function MatchCard({
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <Image
-              src={spellIconUrl(version, spell1)}
-              alt=""
-              width={20}
-              height={20}
-              className="rounded"
-            />
-            <Image
-              src={spellIconUrl(version, spell2)}
-              alt=""
-              width={20}
-              height={20}
-              className="rounded"
-            />
+            <SpellSlot spellId={m.spell1Id} spellImages={spellImages} version={version} size={20} />
+            <SpellSlot spellId={m.spell2Id} spellImages={spellImages} version={version} size={20} />
           </div>
         </div>
 
@@ -424,8 +428,14 @@ function MatchCard({
 
         {/* CS (hidden on small) */}
         <div className="hidden w-14 shrink-0 flex-col items-center justify-center sm:flex">
-          <p className="text-xs text-foreground">{m.cs} CS</p>
-          <p className="text-[10px] text-muted-foreground">{m.csPerMin.toFixed(1)}/m</p>
+          {hasCs ? (
+            <>
+              <p className="text-xs text-foreground">{m.cs} CS</p>
+              <p className="text-[10px] text-muted-foreground">{m.csPerMin.toFixed(1)}/m</p>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">-- CS</p>
+          )}
         </div>
 
         {/* Items */}
