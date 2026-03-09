@@ -88,3 +88,78 @@ export function passiveIconUrl(version: string, filename: string): string {
 export function itemIconUrl(version: string, itemId: string): string {
   return `${BASE}/cdn/${version}/img/item/${itemId}.png`;
 }
+
+/** Returns a map of numeric champion key → DDragon string ID (e.g. 103 → "Ahri") */
+export async function getChampionKeyMap(version: string): Promise<Record<number, string>> {
+  const res = await fetch(`${BASE}/cdn/${version}/data/en_US/champion.json`, {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) return {};
+  const data: { data: Record<string, { key: string }> } = await res.json();
+  const map: Record<number, string> = {};
+  for (const [id, champ] of Object.entries(data.data)) {
+    map[parseInt(champ.key, 10)] = id;
+  }
+  return map;
+}
+
+export function profileIconUrl(version: string, iconId: number): string {
+  return `${BASE}/cdn/${version}/img/profileicon/${iconId}.png`;
+}
+
+export function summonerSpellIconUrl(version: string, filename: string): string {
+  return `${BASE}/cdn/${version}/img/spell/${filename}`;
+}
+
+export interface DDragonSummonerSpell {
+  key: string; // spell ID as a string, e.g. "4"
+  image: { full: string }; // e.g. "SummonerFlash.png"
+}
+
+// ---------------------------------------------------------------------------
+// Community Dragon — ARAM balance modifiers
+// ---------------------------------------------------------------------------
+
+const CDRAGON_BASE = "https://raw.communitydragon.org/latest";
+
+export interface AramChampionModifiers {
+  damageDealtMod: number; // 1.0 = unchanged, 0.9 = −10% damage dealt
+  damageReceivedMod: number; // 1.05 = +5% damage received
+  attackSpeedMod: number; // flat add to attack speed
+  healingReceivedMod: number;
+  shieldMod: number;
+  abilityHasteMultiplier: number; // 0 = no change, 15 = +15 ability haste
+  energyRegenMod: number;
+}
+
+/** Returns a map of numeric champion ID → ARAM modifiers. Gracefully returns {} on error. */
+export async function getAramModifiers(): Promise<Record<number, AramChampionModifiers>> {
+  try {
+    const res = await fetch(
+      `${CDRAGON_BASE}/plugins/rcp-be-lol-game-data/global/default/v1/aram-champion-rates.json`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return {};
+    return (await res.json()) as Record<number, AramChampionModifiers>;
+  } catch {
+    return {};
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Summoner spells
+// ---------------------------------------------------------------------------
+
+/** Returns a map of numeric spell ID → image filename (e.g. 4 → "SummonerFlash.png") */
+export async function getSummonerSpellImages(version: string): Promise<Record<number, string>> {
+  const res = await fetch(`${BASE}/cdn/${version}/data/en_US/summoner.json`, {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) return {};
+  const data: { data: Record<string, DDragonSummonerSpell> } = await res.json();
+  const map: Record<number, string> = {};
+  for (const spell of Object.values(data.data)) {
+    map[parseInt(spell.key, 10)] = spell.image.full;
+  }
+  return map;
+}

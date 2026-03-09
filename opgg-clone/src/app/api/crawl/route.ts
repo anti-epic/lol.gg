@@ -11,9 +11,9 @@
  *   CRON_SECRET    - set automatically by Vercel for cron auth
  *   RIOT_API_KEY   - production Riot API key
  *   CRAWL_REGION   - region to crawl (default: na1)
- *   CRAWL_PLAYERS  - challenger players to process (default: 5)
- *   CRAWL_MATCHES  - matches per player (default: 10)
- *   CRAWL_DELAY_MS - ms between Riot API calls (default: 100 for prod keys)
+ *   CRAWL_PLAYERS  - challenger players to process (default: 10)
+ *   CRAWL_MATCHES  - matches per player (default: 20)
+ *   CRAWL_DELAY_MS - ms between Riot API calls (default: 1300, safe for 100 req/2min limit)
  */
 
 import { type NextRequest, NextResponse } from "next/server";
@@ -69,10 +69,11 @@ async function runCrawl(req: NextRequest) {
     process.env.CRAWL_REGION ??
     "na1"
   ).toLowerCase();
-  const playerLimit = parseInt(process.env.CRAWL_PLAYERS ?? "5", 10);
-  const matchLimit = parseInt(process.env.CRAWL_MATCHES ?? "10", 10);
-  // Production keys allow ~100ms between calls; dev keys need 1200ms.
-  const delayMs = parseInt(process.env.CRAWL_DELAY_MS ?? "100", 10);
+  const playerLimit = parseInt(process.env.CRAWL_PLAYERS ?? "10", 10);
+  const matchLimit = parseInt(process.env.CRAWL_MATCHES ?? "20", 10);
+  // Personal production keys: 100 req / 2 min = ~1.2s per request minimum.
+  // 1300ms gives a small safety buffer. Override with CRAWL_DELAY_MS if needed.
+  const delayMs = parseInt(process.env.CRAWL_DELAY_MS ?? "1300", 10);
 
   const platform = PLATFORM_HOST[region];
   const regional = REGIONAL_HOST[region];

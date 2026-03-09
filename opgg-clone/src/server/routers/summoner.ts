@@ -56,6 +56,10 @@ function buildMatchSummary(match: RiotMatch, puuid: string) {
     win: p.win,
     championId: p.championId,
     championName: p.championName,
+    champLevel: p.champLevel,
+    teamPosition: p.teamPosition,
+    spell1Id: p.summoner1Id,
+    spell2Id: p.summoner2Id,
     kills: p.kills,
     deaths: p.deaths,
     assists: p.assists,
@@ -159,6 +163,25 @@ export const summonerRouter = createTRPCRouter({
       // 5. Cache and return
       await cache.set(cacheKey, result, 300); // 5 min
       return result;
+    }),
+
+  refresh: publicProcedure
+    .input(
+      z.object({
+        puuid: z.string().min(1),
+        region: z.string().min(2).max(5),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const region = input.region.toLowerCase();
+      await Promise.all([
+        cache.delete(`summoner-data:${input.puuid}`),
+        cache.delete(`ranks:${input.puuid}`),
+        cache.delete(`match-ids:${region}:${input.puuid}`),
+        cache.delete(`account:${region}:${input.puuid}`),
+        cache.delete(`masteries:${input.puuid}`),
+      ]);
+      return { ok: true };
     }),
 
   getMatchHistory: publicProcedure

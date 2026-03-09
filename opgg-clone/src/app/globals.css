@@ -88,6 +88,152 @@
   }
 }
 
+/* ─── LoL Home Page Animations ────────────────────────────── */
+
+@keyframes lol-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes lol-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes lol-glow-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 15px rgba(200, 155, 60, 0.25),
+      0 0 30px rgba(200, 155, 60, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(200, 155, 60, 0.5),
+      0 0 60px rgba(200, 155, 60, 0.2);
+  }
+}
+
+@keyframes lol-border-glow {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes lol-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lol-scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(300px);
+    opacity: 0;
+  }
+}
+
+.lol-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #785a28 0%,
+    #c89b3c 20%,
+    #f0e6d3 40%,
+    #c89b3c 60%,
+    #785a28 80%,
+    #c89b3c 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: lol-shimmer 5s linear infinite;
+}
+
+.lol-float {
+  animation: lol-float 7s ease-in-out infinite;
+}
+.lol-glow {
+  animation: lol-glow-pulse 3s ease-in-out infinite;
+}
+
+.lol-fade-up-1 {
+  animation: lol-fade-up 0.7s ease forwards;
+}
+.lol-fade-up-2 {
+  animation: lol-fade-up 0.7s 0.15s ease both;
+}
+.lol-fade-up-3 {
+  animation: lol-fade-up 0.7s 0.3s ease both;
+}
+.lol-fade-up-4 {
+  animation: lol-fade-up 0.7s 0.45s ease both;
+}
+
+.lol-card-hover {
+  transition:
+    transform 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+.lol-card-hover:hover {
+  transform: translateY(-4px);
+  border-color: rgba(200, 155, 60, 0.5);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(200, 155, 60, 0.15);
+}
+
+.lol-link-gold {
+  color: #c89b3c;
+  transition: color 0.15s ease;
+}
+.lol-link-gold:hover {
+  color: #f0e6d3;
+}
+
+.lol-btn-outline {
+  border: 1px solid rgba(200, 155, 60, 0.4);
+  color: #c89b3c;
+  border-radius: 4px;
+  background: transparent;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+.lol-btn-outline:hover {
+  background: rgba(200, 155, 60, 0.1);
+  border-color: rgba(200, 155, 60, 0.7);
+}
+
 @layer base {
   * {
     @apply border-border;
