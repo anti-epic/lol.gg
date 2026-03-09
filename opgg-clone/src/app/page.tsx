@@ -5,17 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const REGIONS = [
-  { value: "na1", label: "NA" },
-  { value: "euw1", label: "EUW" },
-  { value: "kr", label: "KR" },
-  { value: "eun1", label: "EUNE" },
-  { value: "jp1", label: "JP" },
-  { value: "br1", label: "BR" },
-  { value: "la1", label: "LAN" },
-  { value: "la2", label: "LAS" },
-  { value: "oc1", label: "OCE" },
-  { value: "tr1", label: "TR" },
-  { value: "ru", label: "RU" },
+  { value: "na1", label: "NA", defaultTag: "NA1" },
+  { value: "euw1", label: "EUW", defaultTag: "EUW" },
+  { value: "kr", label: "KR", defaultTag: "KR1" },
+  { value: "eun1", label: "EUNE", defaultTag: "EUNE" },
+  { value: "jp1", label: "JP", defaultTag: "JP1" },
+  { value: "br1", label: "BR", defaultTag: "BR1" },
+  { value: "la1", label: "LAN", defaultTag: "LA1" },
+  { value: "la2", label: "LAS", defaultTag: "LA2" },
+  { value: "oc1", label: "OCE", defaultTag: "OC1" },
+  { value: "tr1", label: "TR", defaultTag: "TR1" },
+  { value: "ru", label: "RU", defaultTag: "RU1" },
 ];
 
 export default function Home() {
@@ -24,16 +24,16 @@ export default function Home() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
 
+  const defaultTag = REGIONS.find((r) => r.value === region)?.defaultTag ?? "NA1";
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (!trimmed.includes("#")) {
-      setError("Use Riot ID format: GameName#Tag (e.g. Faker#KR1)");
-      return;
-    }
+    // Auto-append default regional tag if the user didn't include one
+    const riotId = trimmed.includes("#") ? trimmed : `${trimmed}#${defaultTag}`;
     setError("");
-    router.push(`/summoner/${region}/${encodeURIComponent(trimmed)}`);
+    router.push(`/summoner/${region}/${encodeURIComponent(riotId)}`);
   }
 
   return (
@@ -71,7 +71,7 @@ export default function Home() {
               setName(e.target.value);
               if (error) setError("");
             }}
-            placeholder="GameName#Tag"
+            placeholder={`GameName or GameName#${defaultTag}`}
             className="flex-1 bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             autoComplete="off"
             spellCheck={false}

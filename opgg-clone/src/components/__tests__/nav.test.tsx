@@ -65,7 +65,7 @@ describe("Nav", () => {
     vi.mocked(usePathname).mockReturnValue("/");
     render(<Nav />);
 
-    expect(screen.getByPlaceholderText("GameName#Tag")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Summoner name")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Region" })).toBeInTheDocument();
   });
 });

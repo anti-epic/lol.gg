@@ -7,17 +7,17 @@ import { useState, type FormEvent } from "react";
 const links = [{ href: "/champions", label: "Champions" }];
 
 const REGIONS = [
-  { value: "na1", label: "NA" },
-  { value: "euw1", label: "EUW" },
-  { value: "kr", label: "KR" },
-  { value: "eun1", label: "EUNE" },
-  { value: "jp1", label: "JP" },
-  { value: "br1", label: "BR" },
-  { value: "la1", label: "LAN" },
-  { value: "la2", label: "LAS" },
-  { value: "oc1", label: "OCE" },
-  { value: "tr1", label: "TR" },
-  { value: "ru", label: "RU" },
+  { value: "na1", label: "NA", defaultTag: "NA1" },
+  { value: "euw1", label: "EUW", defaultTag: "EUW" },
+  { value: "kr", label: "KR", defaultTag: "KR1" },
+  { value: "eun1", label: "EUNE", defaultTag: "EUNE" },
+  { value: "jp1", label: "JP", defaultTag: "JP1" },
+  { value: "br1", label: "BR", defaultTag: "BR1" },
+  { value: "la1", label: "LAN", defaultTag: "LA1" },
+  { value: "la2", label: "LAS", defaultTag: "LA2" },
+  { value: "oc1", label: "OCE", defaultTag: "OC1" },
+  { value: "tr1", label: "TR", defaultTag: "TR1" },
+  { value: "ru", label: "RU", defaultTag: "RU1" },
 ];
 
 export function Nav() {
@@ -26,12 +26,16 @@ export function Nav() {
   const [region, setRegion] = useState("na1");
   const [query, setQuery] = useState("");
 
+  const defaultTag = REGIONS.find((r) => r.value === region)?.defaultTag ?? "NA1";
+
   function handleSearch(e: FormEvent) {
     e.preventDefault();
     const trimmed = query.trim();
-    if (!trimmed || !trimmed.includes("#")) return;
+    if (!trimmed) return;
+    // Auto-append default regional tag if the user didn't include one
+    const riotId = trimmed.includes("#") ? trimmed : `${trimmed}#${defaultTag}`;
     setQuery("");
-    router.push(`/summoner/${region}/${encodeURIComponent(trimmed)}`);
+    router.push(`/summoner/${region}/${encodeURIComponent(riotId)}`);
   }
 
   return (
@@ -69,7 +73,7 @@ export function Nav() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="GameName#Tag"
+            placeholder="Summoner name"
             className="flex-1 bg-transparent px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             autoComplete="off"
             spellCheck={false}
